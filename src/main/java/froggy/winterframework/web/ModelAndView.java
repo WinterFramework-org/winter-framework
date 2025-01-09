@@ -1,5 +1,6 @@
 package froggy.winterframework.web;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class ModelAndView {
@@ -7,7 +8,7 @@ public class ModelAndView {
     private Map<String, Object> model;
 
     public ModelAndView(String view) {
-        this.view = view;
+        this(view, new HashMap<String, Object>());
     }
 
     public ModelAndView(String view, Map<String, Object> model) {
