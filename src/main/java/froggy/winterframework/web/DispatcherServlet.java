@@ -1,9 +1,10 @@
 package froggy.winterframework.web;
 
 import froggy.winterframework.stereotype.Controller;
+import froggy.winterframework.web.method.HandlerMethod;
+import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +28,15 @@ public class DispatcherServlet extends HttpServlet {
 
         List<String> classNames = getAllClassNames(new File(classpath.getPath()).getPath());
         registerControllerMappings(classNames);
+
+        registerHandlerMethod();
+    }
+
+    private void registerHandlerMethod() {
+        RequestMappingHandlerMapping requestMappingHandlerMapping = new RequestMappingHandlerMapping();
+        for (Map.Entry<String, Class<?>> entry : controllerMap.entrySet()) {
+            requestMappingHandlerMapping.detectHandlerMethods(entry.getValue());
+        }
     }
 
     public static List<String> getAllClassNames(String path) {
@@ -89,13 +99,13 @@ public class DispatcherServlet extends HttpServlet {
          * TODO: 추후 URI에 따라 메소드도 동적으로 매핑되도록 개선 필요
          */
         String requestURI = request.getRequestURI();
-        Class<?> aClass = controllerMap.get(requestURI);
 
         ModelAndView modelAndView = null;
+        HandlerMethod handlerMethod = RequestMappingHandlerMapping.getHandlerMethod(requestURI);
+        Object instance = handlerMethod.getHandlerInstance();
+
         try {
-            Object controllerInstance = aClass.getDeclaredConstructor().newInstance();
-            Method method = aClass.getMethod("process", HttpServletRequest.class, HttpServletResponse.class);
-            modelAndView = (ModelAndView) method.invoke(controllerInstance, request, response);
+            modelAndView = (ModelAndView) handlerMethod.getMethod().invoke(instance, request, response);
         } catch (Exception e) {
             e.printStackTrace();
         }
