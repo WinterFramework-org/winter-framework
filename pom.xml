@@ -12,29 +12,51 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <jetty.version>9.4.45.v20220203</jetty.version>
   </properties>
 
   <dependencies>
-    <dependency>
 
-      <!-- Jetty Server -->
+    <!-- Jetty Server -->
+    <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
-      <version>9.4.45.v20220203</version>
+      <version>${jetty.version}</version>
     </dependency>
 
     <!-- Jetty Servlet -->
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
-      <version>9.4.45.v20220203</version>
+      <version>${jetty.version}</version>
     </dependency>
 
     <!-- Jetty Session -->
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlets</artifactId>
-      <version>9.4.45.v20220203</version>
+      <version>${jetty.version}</version>
+    </dependency>
+
+    <!-- Jetty Webapp -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-webapp</artifactId>
+      <version>${jetty.version}</version>
+    </dependency>
+
+    <!-- Jetty JSP -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>apache-jsp</artifactId>
+      <version>${jetty.version}</version>
+    </dependency>
+
+    <!-- Jetty JSTL-->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>apache-jstl</artifactId>
+      <version>${jetty.version}</version>
     </dependency>
   </dependencies>
 
