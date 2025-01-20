@@ -124,7 +124,14 @@ public class DispatcherServlet extends HttpServlet {
 
     private boolean isStaticResource(HttpServletRequest request, HttpServletResponse response) {
         String accept = request.getHeader("Accept");
-        System.out.println(request.getRequestURI() + " " + accept);
+        String requestURI = request.getRequestURI();
+
+
+        if (requestURI.equals("/") || requestURI.endsWith(".jsp") || requestURI.endsWith(".html")) {
+            response.setContentType("text/html"); // MIME 타입 설정
+            return true;
+        }
+
         if (accept.startsWith("text/css")) {
             response.setContentType("text/css");
             return true;
