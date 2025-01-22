@@ -1,7 +1,6 @@
 package froggy.winterframework.boot;
 
 import froggy.winterframework.web.DispatcherServlet;
-import javax.servlet.Servlet;
 import org.apache.jasper.servlet.JspServlet;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHolder;
