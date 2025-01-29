@@ -20,9 +20,9 @@ public class HandlerMethod {
         this.returnType = returnType;
     }
 
-    public HandlerMethod(Class<?> handler, Method method) {
+    public HandlerMethod(Object handlerInstance, Method method) {
         this(
-            createHandlerInstance(handler),
+            handlerInstance,
             method,
             method.getParameters(),
             method.getParameterTypes(),
@@ -50,14 +50,4 @@ public class HandlerMethod {
         return returnType;
     }
 
-    private static Object createHandlerInstance(Class<?> clazz) {
-        Object instance = null;
-        try {
-            instance = clazz.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return instance;
-    }
 }

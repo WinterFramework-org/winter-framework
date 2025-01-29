@@ -1,14 +1,9 @@
 package froggy.winterframework.web;
 
-import froggy.winterframework.stereotype.Controller;
+import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
-import java.io.File;
 import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
@@ -20,62 +15,18 @@ import javax.servlet.http.HttpServletResponse;
 @WebServlet(name = "DispatcherServlet", value = "/")
 public class DispatcherServlet extends HttpServlet {
 
-    private static final Map<String, Class<?>> controllerMap = new HashMap<>();
+    private ApplicationContext context;
+    private RequestMappingHandlerMapping requestMappingHandlerMapping;
+
+    public DispatcherServlet(ApplicationContext context) {
+        this.context = context;
+    }
 
     @Override
-    public void init() throws ServletException {
-        URL classpath = Thread.currentThread().getContextClassLoader().getResource("");
-
-        List<String> classNames = getAllClassNames(new File(classpath.getPath()).getPath());
-        registerControllerMappings(classNames);
-
-        registerHandlerMethod();
+    public void init() {
+        requestMappingHandlerMapping = (RequestMappingHandlerMapping) context.getBean("requestMappingHandlerMapping");
+        requestMappingHandlerMapping.afterPropertiesSet();
     }
-
-    private void registerHandlerMethod() {
-        RequestMappingHandlerMapping requestMappingHandlerMapping = new RequestMappingHandlerMapping();
-        for (Map.Entry<String, Class<?>> entry : controllerMap.entrySet()) {
-            requestMappingHandlerMapping.detectHandlerMethods(entry.getValue());
-        }
-    }
-
-    public static List<String> getAllClassNames(String path) {
-        List<String> classNames = new ArrayList<>();
-        File directory = new File(path);
-
-        if (directory.exists() && directory.isDirectory()) {
-            scanDirectory(directory, "", classNames);
-        }
-        return classNames;
-    }
-
-    private static void scanDirectory(File directory, String packageName, List<String> classNames) {
-        for (File file : directory.listFiles()) {
-            if (file.isDirectory()) {
-                scanDirectory(file, packageName + file.getName() + ".", classNames);
-            }
-
-            if (file.getName().endsWith(".class")) {
-                String className = packageName + file.getName().replace(".class", "");
-                classNames.add(className);
-            }
-        }
-    }
-    private void registerControllerMappings(List<String> classNames) {
-        classNames.forEach(className -> {
-            try {
-                Class<?> clazz = Class.forName(className);
-                if (clazz.isAnnotationPresent(Controller.class)) {
-                    Controller annotation = clazz.getAnnotation(Controller.class);
-                    String mappingUrl = annotation.url();
-                    controllerMap.put(mappingUrl, clazz);
-                }
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
 
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
@@ -101,7 +52,7 @@ public class DispatcherServlet extends HttpServlet {
         String requestURI = request.getRequestURI();
 
         ModelAndView modelAndView = null;
-        HandlerMethod handlerMethod = RequestMappingHandlerMapping.getHandlerMethod(requestURI);
+        HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(requestURI);
         Object instance = handlerMethod.getHandlerInstance();
 
         try {
