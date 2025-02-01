@@ -17,26 +17,37 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
 
+/**
+ * 프레임워크의 실행을 담당하는 메인 클래스.
+ */
 public class WinterApplication {
 
+    /**
+     * 애플리케이션 진입점 클래스.
+     */
     private Class<?> mainApplicationClass;
 
     public WinterApplication(Class<?> mainApplicationClass) {
         this.mainApplicationClass = mainApplicationClass;
     }
 
+    /**
+     * 애플리케이션을 실행하여 {@link ApplicationContext}를 초기화하고 반환.
+     *
+     * @return 초기화된 {@link ApplicationContext}
+     * @throws Exception 실행 중 발생하는 예외
+     */
     private ApplicationContext run() throws Exception{
         // 애플리케이션의 빈 관리 및 컨텍스트를 초기화하기 위한 기본 객체
         ApplicationContext context = new ApplicationContext();
 
-        // 애플리케이션 실행에 필요한 빈을 수동으로 등록
+        // 필수 컴포넌트 수동 등록
         initContext(context);
 
         // 환경설정, 리스너 등록
         prepareContext(context);
 
-        // BeanDefinition 정보 등록 및 실제 Bean Instance 생성
-        // TODO: 의존성 주입 (DI) 로직 구현 필요
+        // @Component가 붙은 클래스 스캔, BeanDefinition 등록 및 Singleton Bean 인스턴스 생성
         refreshContext(context);
 
         // Embedded Web Application Server
@@ -45,13 +56,15 @@ public class WinterApplication {
         return context;
     }
 
+    /**
+     * 필수 Bean을 ApplicationContext에 등록.
+     * <p>현재는 DI 기능이 없어 {@code RequestMappingHandlerMapping}을 수동 등록.
+     *
+     * @param context ApplicationContext
+     */
     private void initContext(ApplicationContext context) {
         BeanFactory beanFactory = context.getBeanFactory();
 
-        /**
-         * RequestMappingHandlerMapping 수동 등록
-         * 현재 DI 기능이 없어 수동으로 등록
-         */
 
         String beanName = WinterUtils.resolveSimpleBeanName(RequestMappingHandlerMapping.class);
 
@@ -70,11 +83,22 @@ public class WinterApplication {
 
     }
 
+    /**
+     * Bean 스캔 및 등록을 수행하고, Singleton Bean 인스턴스를 생성.
+     *
+     * @param context ApplicationContext
+     */
     private void refreshContext(ApplicationContext context) {
         registerBeanDefinition(context.getBeanFactory());
+
         finishBeanFactoryInitialization(context.getBeanFactory());
     }
-    
+
+    /**
+     * 기본 패키지를 스캔하여 @Component 애노테이션이 붙은 클래스의 {@link BeanDefinition} 등록.
+     *
+     * @param beanFactory BeanFactory 인스턴스
+     */
     public void registerBeanDefinition(BeanFactory beanFactory) {
         Set<String> basePackageClassNames = getFullyQualifiedClassNamesByBasePackage();
 
@@ -84,6 +108,12 @@ public class WinterApplication {
         }
     }
 
+
+    /**
+     * 패키지의 모든 클래스를 스캔하여 전체 클래스명을 Set으로 반환.
+     *
+     * @return 전체 클래스명을 담은 Set
+     */
     private Set<String> getFullyQualifiedClassNamesByBasePackage() {
         URL resource = Thread.currentThread().getContextClassLoader().getResource("");
 
@@ -96,6 +126,13 @@ public class WinterApplication {
         return fullQualifiedClassNames;
     }
 
+    /**
+     * 주어진 디렉토리를 재귀적으로 스캔하여 .class 파일의 완전한 클래스명을 수집.
+     *
+     * @param directory               스캔할 디렉토리
+     * @param packageName             현재 패키지 이름
+     * @param fullQualifiedClassNames 클래스명을 저장할 Set
+     */
     private void scanDirectory(File directory, String packageName, Set<String> fullQualifiedClassNames) {
         for (File file : directory.listFiles()) {
             if (file.isDirectory()) {
@@ -109,6 +146,12 @@ public class WinterApplication {
         }
     }
 
+    /**
+     * @Component 애노테이션이 붙은 클래스를 찾아 {@link BeanDefinition}로 변환하여 Set으로 반환.
+     *
+     * @param ClassNames 스캔된 클래스 이름 Set
+     * @return BeanDefinition Set
+     */
     private Set<BeanDefinition> findComponents(Set<String> ClassNames) {
         Set<BeanDefinition> beanDefinitions = new LinkedHashSet<>();
 
@@ -126,10 +169,18 @@ public class WinterApplication {
         return beanDefinitions;
     }
 
+    /**
+     * 등록된 {@link BeanDefinition} 기반으로 빈을 인스턴스를 생성.
+     *
+     * @param beanFactory {@link BeanFactory} 인스턴스
+     */
     private void finishBeanFactoryInitialization(BeanFactory beanFactory) {
         beanFactory.preInstantiateSingletons();
     }
 
+    /**
+     * Embedded WAS 실행
+     */
     private void initServer(ApplicationContext applicationContext) throws Exception {
         Server server = new Server(8080);
 
@@ -161,6 +212,9 @@ public class WinterApplication {
         server.join();
     }
 
+    /**
+     * 애플리케이션 실행 메소드
+     */
     public static ApplicationContext run(Class<?> runClass) throws Exception {
         return (new WinterApplication(runClass)).run();
     }

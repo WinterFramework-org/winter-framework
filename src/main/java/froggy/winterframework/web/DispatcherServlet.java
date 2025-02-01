@@ -12,6 +12,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * Front Controller 역할을 하는 DispatcherServlet.
+ *
+ * <p>HTTP 요청을 받아 적절한 Handler(Controller) 메소드에 위임,
+ * 실행 결과(ModelAndView)를 View로 전달하는 역할을 수행.
+ */
 @WebServlet(name = "DispatcherServlet", value = "/")
 public class DispatcherServlet extends HttpServlet {
 
@@ -22,21 +28,37 @@ public class DispatcherServlet extends HttpServlet {
         this.context = context;
     }
 
+    /**
+     * URL과 Handler(Controller) 메소드를 매핑하는 RequestMappingHandlerMapping을 초기화
+     *
+     * <p>DispatcherServlet 객체가 생성되면,
+     * 등록된 모든 Handler(Controller) Bean을 스캔하여 URL과 매핑 정보를 설정
+     */
     @Override
     public void init() {
         requestMappingHandlerMapping = (RequestMappingHandlerMapping) context.getBean("requestMappingHandlerMapping");
         requestMappingHandlerMapping.afterPropertiesSet();
     }
 
+    /**
+     * HTTP 요청을 처리하는 메소드 (FrontController 역할)
+     *
+     * <ol>
+     *   <li>정적 자원 요청은 서블릿 컨테이너의 DefaultHandler에 위임</li>
+     *   <li>요청 URI에 매핑된 Handler(Controller) 메소드를 실행</li>
+     *   <li>실행 결과({@link ModelAndView})를 request 속성에 저장하고, View로 전달</li>
+     * </ol>
+     *
+     * @param request  HttpServletRequest 객체
+     * @param response HttpServletResponse 객체
+     * @throws ServletException 서블릿 예외 발생 시
+     * @throws IOException      입출력 예외 발생 시
+     */
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
 
-        /*
-        * 정적 자원 처리
-        * Jetty의 DefaultHandler로 요청 전달
-        * TODO: Tomcat WAS 서버도 호환가능하게
-        * */
+        // 정적 자원 처리: 요청이 정적 자원에 해당하면 DefaultHandler로 위임
         if (isStaticResource(request, response)) {
             RequestDispatcher dispatcher = request.getServletContext().getNamedDispatcher("default");
             if (dispatcher != null) {
@@ -45,34 +67,42 @@ public class DispatcherServlet extends HttpServlet {
             }
         }
 
-        /**
-         * 요청 URI와 매핑되는 컨트롤러 메소드 실행
-         * TODO: 추후 URI에 따라 메소드도 동적으로 매핑되도록 개선 필요
-         */
+        // 요청 URI에 매핑되는 Handler(Controller) 메소드 실행
         String requestURI = request.getRequestURI();
-
         ModelAndView modelAndView = null;
         HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(requestURI);
         Object instance = handlerMethod.getHandlerInstance();
 
         try {
+            // 실제 Handler(Controller) 메소드 실행
             modelAndView = (ModelAndView) handlerMethod.getMethod().invoke(instance, request, response);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        // ModelAndView의 데이터를 Request에 추가
+        //  ModelAndView 데이터를 request 속성에 추가
         if (!modelAndView.getModel().isEmpty()) {
             for (Map.Entry<String, Object> entry: modelAndView.getModel().entrySet()) {
                 request.setAttribute(entry.getKey(), entry.getValue());
             }
         }
 
-        // 렌더링
+        // view 렌더링
         RequestDispatcher dispatcher = request.getRequestDispatcher(modelAndView.getView());
         dispatcher.forward(request, response);
     }
 
+    /**
+     * 정적 리소스 요청을 확인하는 메소드
+     *
+     * <p>요청 URI 및 Accept 헤더 정보를 기반으로 정적 자원(HTML, JSP, CSS, 이미지 등)에 해당하는지 확인하고,
+     * 응답의 MIME 타입을 설정
+     *
+     *
+     * @param request  HttpServletRequest 객체
+     * @param response HttpServletResponse 객체
+     * @return 정적 리소스 요청이면 {@code true}, 그렇지 않으면 {@code false}
+     */
     private boolean isStaticResource(HttpServletRequest request, HttpServletResponse response) {
         String accept = request.getHeader("Accept");
         String requestURI = request.getRequestURI();
