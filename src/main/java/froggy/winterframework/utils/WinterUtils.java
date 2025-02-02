@@ -2,6 +2,7 @@ package froggy.winterframework.utils;
 
 import froggy.winterframework.stereotype.Controller;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
 
 /**
  * 프레임워크에서 공통으로 사용되는 유틸리티 기능을 제공하는 클래스.
@@ -65,18 +66,18 @@ public class WinterUtils {
     }
 
     /**
-     * 주어진 클래스가 특정 애노테이션을 포함하고 있는지 확인.
+     * 주어진 Element에 특정 애노테이션을 포함하고 있는지 확인.
      *
-     * @param clazz 대상 클래스
+     * @param targetElement 대상 Element (클래스, 메서드, 생성자, 필드 등등)
      * @param targetAnnotation 찾을 애노테이션 타입
      * @return 해당 애노테이션이 존재하면 {@code true}, 그렇지 않으면 {@code false}
      */
-    public static boolean hasAnnotation(Class<?> clazz, Class<? extends Annotation> targetAnnotation) {
-        if (clazz.isAnnotationPresent(targetAnnotation)) {
+    public static boolean hasAnnotation(AnnotatedElement targetElement, Class<? extends Annotation> targetAnnotation) {
+        if (targetElement.isAnnotationPresent(targetAnnotation)) {
             return true;
         }
 
-        for (Annotation annotation : clazz.getAnnotations()) {
+        for (Annotation annotation : targetElement.getAnnotations()) {
             if (annotation.annotationType().isAnnotationPresent(targetAnnotation)) {
                 return true;
             }
