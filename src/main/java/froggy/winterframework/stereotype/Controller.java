@@ -16,6 +16,4 @@ import java.lang.annotation.Target;
 @Component
 public @interface Controller {
     String name() default "";
-    String url() default "";
-
 }

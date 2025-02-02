@@ -9,6 +9,7 @@ import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.bind.annotation.RequestMapping;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.RequestMappingInfo;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -94,17 +95,54 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     private Map<RequestMappingInfo, Method> selectMethods(Class<?> handler) {
         Map<RequestMappingInfo, Method> results = new HashMap<>();
 
-        Controller handlerAnnotation = handler.getAnnotation(Controller.class);
+        String baseUrl = extractUrlPattern(handler);
         for (Method method : handler.getMethods()) {
             if (method.isAnnotationPresent(RequestMapping.class)) {
-                RequestMapping methodAnnotation = method.getAnnotation(RequestMapping.class);
-                String urlPattern = handlerAnnotation.url() + methodAnnotation.urlPattern();
+                String methodUrl = extractUrlPattern(method);
+                String mappedUrl = combineUrl(baseUrl, methodUrl);
 
-                results.put(new RequestMappingInfo(urlPattern), method);
+                results.put(new RequestMappingInfo(mappedUrl), method);
             }
         }
 
         return results;
+    }
+
+    /**
+     * 주어진 {@link Class} 또는 {@link Method}에 선언된 {@link RequestMapping}에서 urlPattern 값을 추출.
+     * 어노테이션이 없는 경우 빈 문자열("")을 반환.
+     *
+     * @param targetElement  어노테이션이 선언된 {@link Class}나 @{@link Method}
+     * @return 추출된 URL 패턴 문자열, 어노테이션이 없으면 ""
+     */
+    private String extractUrlPattern(AnnotatedElement targetElement) {
+        RequestMapping mapping = targetElement .getAnnotation(RequestMapping.class);
+
+        return mapping != null ? mapping.urlPattern() : "";
+    }
+
+    /**
+     * 클래스 레벨의 Mapping된 URL과 메서드 레벨의 URL Mapping된 URL을 결합.
+     *
+     * @param baseUrl    클래스 레벨의 URL Mapping
+     * @param methodUrl  메서드 레벨의 URL Mapping
+     * @return Mapped URL
+     */
+    private String combineUrl(String baseUrl, String methodUrl) {
+        if (baseUrl ==  null) baseUrl = "";
+        if (methodUrl == null) methodUrl = "";
+
+        // baseUrl의 마지막 "/" 제거
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+
+        // 비어있지 않고 '/'로 시작하지 않으면 URL 앞에 '/'를 추가
+        if (!methodUrl.isEmpty() && !methodUrl.startsWith("/")) {
+            methodUrl = "/" + methodUrl;
+        }
+
+        return baseUrl + methodUrl;
     }
 
     /**
