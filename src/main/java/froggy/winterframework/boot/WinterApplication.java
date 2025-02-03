@@ -149,13 +149,13 @@ public class WinterApplication {
     /**
      * @Component 애노테이션이 붙은 클래스를 찾아 {@link BeanDefinition}로 변환하여 Set으로 반환.
      *
-     * @param ClassNames 스캔된 클래스 이름 Set
+     * @param classNames 스캔된 클래스 이름 Set
      * @return BeanDefinition Set
      */
-    private Set<BeanDefinition> findComponents(Set<String> ClassNames) {
+    private Set<BeanDefinition> findComponents(Set<String> classNames) {
         Set<BeanDefinition> beanDefinitions = new LinkedHashSet<>();
 
-        for (String className : ClassNames) {
+        for (String className : classNames) {
             try {
                 Class<?> clazz = Class.forName(className);
                 if (WinterUtils.hasAnnotation(clazz, Component.class)) {
