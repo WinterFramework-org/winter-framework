@@ -1,7 +1,9 @@
 package froggy.winterframework.beans.factory.support;
 
+import froggy.winterframework.beans.factory.annotation.Autowired;
 import froggy.winterframework.beans.factory.config.BeanDefinition;
 import froggy.winterframework.utils.WinterUtils;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,9 +28,16 @@ public class BeanFactory extends SingletonBeanRegistry {
      *
      * @param beanName 조회할 Bean의 이름
      * @return {@link BeanDefinition}, 없으면 null
+     * @throws RuntimeException beanName으로 등록된 BeanDefinition이 없는경우
      */
-    public BeanDefinition getBeanDefinition(String beanName) {
-        return beanDefinitionMap.get(beanName);
+    public BeanDefinition getBeanDefinition(String beanName) throws RuntimeException {
+        BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+
+        if(beanDefinition == null) {
+            throw new IllegalStateException("No bean definition found for bean: " + beanName);
+        }
+
+        return beanDefinition;
     }
 
     /**
@@ -66,9 +75,9 @@ public class BeanFactory extends SingletonBeanRegistry {
      *
      * @param beanName       Bean 이름
      * @param beanDefinition 등록할 BeanDefinition
-     * @throws IllegalStateException 이미 동일 이름의 BeanDefinition이 존재할 경우
+     * @throws RuntimeException 이미 동일 이름의 BeanDefinition이 존재할 경우
      */
-    public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition) {
+    public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition) throws RuntimeException {
         BeanDefinition bd = beanDefinitionMap.putIfAbsent(beanName, beanDefinition);
 
         if (bd != null) {
@@ -84,7 +93,7 @@ public class BeanFactory extends SingletonBeanRegistry {
      * @param beanName 조회할 Bean 이름
      * @return Bean 객체
      */
-    public Object getBean(String beanName) {
+    public Object getBean(String beanName) throws RuntimeException {
         return doGetBean(beanName);
     }
 
@@ -94,8 +103,9 @@ public class BeanFactory extends SingletonBeanRegistry {
      * 
      * @param beanName 조회할 Bean 이름
      * @return Bean 객체
+     * @throws RuntimeException BeanDefinition이 존재하지 않는 경우, Bean 생성 중 예외 발생 시
      */
-    protected Object doGetBean(String beanName) {
+    protected Object doGetBean(String beanName) throws RuntimeException {
         Object beanInstance = getSingleton(beanName);
 
         if (beanInstance != null) {
@@ -113,8 +123,9 @@ public class BeanFactory extends SingletonBeanRegistry {
      * @param beanName       생성할 Bean 이름
      * @param beanDefinition BeanDefinition 정보
      * @return 생성된 Bean 객체
+     * @throws RuntimeException Bean생성 중 발생한 예외
      */
-    public Object createBean(String beanName, BeanDefinition beanDefinition) {
+    public Object createBean(String beanName, BeanDefinition beanDefinition) throws RuntimeException {
         return doCreateBean(beanName, beanDefinition);
     }
 
@@ -125,27 +136,81 @@ public class BeanFactory extends SingletonBeanRegistry {
      * @param beanName       생성할 Bean 이름
      * @param beanDefinition BeanDefinition 정보
      * @return 생성된 Bean 객체
-     * @throws RuntimeException 생성 중 발생한 예외
+     * @throws RuntimeException Bean 생성 중 발생한 예외
      */
-    private Object doCreateBean(String beanName, BeanDefinition beanDefinition) {
+    private Object doCreateBean(String beanName, BeanDefinition beanDefinition) throws RuntimeException {
         Class<?> beanClass = beanDefinition.getBeanClass();
 
+        // @Autowired 선언된 생성자 찾기
+        Constructor<?> autowiredConstructor = findAutowiredConstructor(beanClass);
         Object beanInstance = null;
         try {
-            beanInstance = beanClass.getDeclaredConstructor().newInstance();
+            // @Autowired가 붙은 생성자가 있으면 의존성을 주입하여 인스턴스 생성
+            if (autowiredConstructor != null) {
+                Object[] parameters = resolveDependencies(autowiredConstructor);
+                beanInstance = autowiredConstructor.newInstance(parameters);
+            } else {
+                // 기본 생성자로 인스턴스 생성
+                beanInstance = beanClass.getDeclaredConstructor().newInstance();
+            }
         } catch (InstantiationException e) {
-            throw new RuntimeException("Failed to instantiate bean: " + beanName, e);
+            throw new RuntimeException("Failed to instantiate bean: " + beanName + " (class: " + beanClass.getName() + ")", e);
         } catch (IllegalAccessException e) {
-            throw new RuntimeException("Illegal access while creating bean: " + beanName, e);
+            throw new RuntimeException("Illegal access while creating bean: " + beanName + " (class: " + beanClass.getName() + ")", e);
         } catch (InvocationTargetException e) {
-            throw new RuntimeException("Error invoking constructor for bean: " + beanName, e);
+            throw new RuntimeException("Error invoking constructor for bean: " + beanName + " (class: " + beanClass.getName() + ")", e);
         } catch (NoSuchMethodException e) {
-            throw new RuntimeException("No default constructor found for bean: " + beanName, e);
+            throw new RuntimeException("No default constructor found for bean: " + beanName + " (class: " + beanClass.getName() + ")", e);
         }
 
         registerSingleton(beanName, beanInstance);
 
         return beanInstance;
+    }
+
+    /**
+     * 주어진 클래스에서 {@code @Autowired}가 붙은 생성자를 찾음.
+     *
+     * @param beanClass 대상 Bean 클래스
+     * @return {@code @Autowired}가 붙은 생성자 (없으면 {@code null})
+     */
+    private Constructor<?> findAutowiredConstructor(Class<?> beanClass) {
+        for (Constructor<?> constructor: beanClass.getDeclaredConstructors()) {
+            if (WinterUtils.hasAnnotation(constructor, Autowired.class)) {
+                return constructor;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * DI를 위한 생성자 호출 시 필요한 Bean 인스턴스 배열을 반환.
+     *
+     * <ul>
+     *     <li>생성자의 각 매개변수 타입을 조회하여 해당하는 Bean 객체를 가져옴</li>
+     *     <li>가져온 Bean 객체들을 생성자 호출 시 인자로 전달할 배열로 반환</li>
+     * </ul>
+     * @param constructor DI가 필요한 생성자
+     * @return 생성자 호출에 사용할 Bean 객체 배열
+     */
+    private Object[] resolveDependencies(Constructor<?> constructor) {
+        Object[] parameters = new Object[constructor.getParameterCount()];
+
+        int index = 0;
+        for (Class<?> clazz: constructor.getParameterTypes()) {
+            String dependencyBeanName = WinterUtils.resolveSimpleBeanName(clazz);
+            try {
+                parameters[index++] = getBean(dependencyBeanName);
+            } catch (IllegalStateException e) {
+                throw new IllegalStateException(
+                    "Failed to resolve dependency: No qualifying bean of type '"
+                        + clazz.getName() + "' found.", e);
+            }
+
+        }
+
+        return parameters;
     }
 
     /**
