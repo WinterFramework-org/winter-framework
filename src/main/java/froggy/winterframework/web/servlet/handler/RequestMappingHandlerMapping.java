@@ -6,6 +6,7 @@ import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.context.support.ApplicationContextSupport;
 import froggy.winterframework.stereotype.Controller;
 import froggy.winterframework.utils.WinterUtils;
+import froggy.winterframework.web.bind.annotation.HttpMethod;
 import froggy.winterframework.web.bind.annotation.RequestMapping;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.RequestMappingInfo;
@@ -76,11 +77,11 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
      */
     public void detectHandlerMethods(Class<?> handler) {
         // 해당 클래스에서 `@RequestMapping`이 붙은 메소드를 찾음.
-        Map<RequestMappingInfo, Method> methods = selectMethods(handler);
+        Map<Method, RequestMappingInfo> methods = selectMethods(handler);
         Object handlerInstance = getApplicationContext().getBean(WinterUtils.resolveSimpleBeanName(handler));
 
         // 찾은 메소드와 URL 정보를 `registerHandlerMethodMapping()`을 통해 매핑 등록.
-        methods.forEach((requestMappingInfo, method) -> {
+        methods.forEach((method, requestMappingInfo) -> {
             registerHandlerMethodMapping(handlerInstance, requestMappingInfo, method);
         });
     }
@@ -92,8 +93,8 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
      * @param handler Handler({@link Controller}) 클래스
      * @return URL 패턴과 해당 메소드 정보를 담은 Map
      */
-    private Map<RequestMappingInfo, Method> selectMethods(Class<?> handler) {
-        Map<RequestMappingInfo, Method> results = new HashMap<>();
+    private Map<Method, RequestMappingInfo> selectMethods(Class<?> handler) {
+        Map<Method, RequestMappingInfo> results = new HashMap<>();
 
         String baseUrl = extractUrlPattern(handler);
         for (Method method : handler.getMethods()) {
@@ -101,7 +102,10 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
                 String methodUrl = extractUrlPattern(method);
                 String mappedUrl = combineUrl(baseUrl, methodUrl);
 
-                results.put(new RequestMappingInfo(mappedUrl), method);
+                RequestMapping requestMapping = method.getAnnotation(RequestMapping.class);
+                HttpMethod[] httpMethods = requestMapping.httpMethod();
+
+                results.put(method, new RequestMappingInfo(mappedUrl, httpMethods));
             }
         }
 
@@ -151,10 +155,16 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
      * @param handlerInstance    Handler({@link Controller}) 인스턴스
      * @param requestMappingInfo 매핑 정보 (URL 패턴) {@link RequestMappingInfo}
      * @param method             실행할 {@link Method}
+     * @throws IllegalStateException 동일한 URL Pattern과 HTTP Method가 이미 등록된 경우 예외 발생
      */
     private void registerHandlerMethodMapping(Object handlerInstance,
-        RequestMappingInfo requestMappingInfo, Method method) {
-        registry.put(requestMappingInfo, new HandlerMethod(handlerInstance, method));
+        RequestMappingInfo requestMappingInfo, Method method) throws RuntimeException {
+        HandlerMethod handlerMethod = registry.put(requestMappingInfo,
+            new HandlerMethod(handlerInstance, method));
+
+        if (handlerMethod != null) {
+            throw new IllegalStateException("Duplicate mapping detected: '" + requestMappingInfo.getUrlPattern() + "':(" + handlerMethod.getHandlerInstance().getClass() + ")");
+        }
     }
 
     /**
@@ -163,8 +173,8 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
      * @param urlPattern 요청 URL 패턴
      * @return 매핑된 {@link HandlerMethod}, 매핑이 없으면 {@code null} 반환
      */
-    public HandlerMethod getHandlerMethod(String urlPattern) {
-        return registry.get(new RequestMappingInfo(urlPattern));
+    public HandlerMethod getHandlerMethod(String urlPattern, String requestMethod) {
+        return registry.get(new RequestMappingInfo(urlPattern, HttpMethod.valueOf(requestMethod)));
     }
 
 }
