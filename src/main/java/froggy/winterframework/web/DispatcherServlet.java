@@ -37,7 +37,13 @@ public class DispatcherServlet extends HttpServlet {
     @Override
     public void init() {
         requestMappingHandlerMapping = (RequestMappingHandlerMapping) context.getBean("requestMappingHandlerMapping");
-        requestMappingHandlerMapping.afterPropertiesSet();
+        try {
+            requestMappingHandlerMapping.afterPropertiesSet();
+        } catch (RuntimeException e) {
+            System.err.println("Critical error during initialization: \n" + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     /**
@@ -69,8 +75,9 @@ public class DispatcherServlet extends HttpServlet {
 
         // 요청 URI에 매핑되는 Handler(Controller) 메소드 실행
         String requestURI = request.getRequestURI();
+        String requestMethod = request.getMethod();
         ModelAndView modelAndView = null;
-        HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(requestURI);
+        HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(requestURI, requestMethod);
         Object instance = handlerMethod.getHandlerInstance();
 
         try {
