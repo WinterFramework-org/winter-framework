@@ -2,8 +2,12 @@ package froggy.winterframework.web;
 
 import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.web.method.HandlerMethod;
+import froggy.winterframework.web.servlet.HandlerAdapter;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
+import froggy.winterframework.web.servlet.mvc.method.annotation.DefaultControllerHandlerAdapter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
@@ -23,6 +27,7 @@ public class DispatcherServlet extends HttpServlet {
 
     private ApplicationContext context;
     private RequestMappingHandlerMapping requestMappingHandlerMapping;
+    private List<HandlerAdapter> handlerAdapters = new ArrayList<>();
 
     public DispatcherServlet(ApplicationContext context) {
         this.context = context;
@@ -36,6 +41,7 @@ public class DispatcherServlet extends HttpServlet {
      */
     @Override
     public void init() {
+        initHandlerAdapters();
         requestMappingHandlerMapping = (RequestMappingHandlerMapping) context.getBean("requestMappingHandlerMapping");
         try {
             requestMappingHandlerMapping.afterPropertiesSet();
@@ -44,6 +50,10 @@ public class DispatcherServlet extends HttpServlet {
             e.printStackTrace();
             System.exit(1);
         }
+    }
+
+    private void initHandlerAdapters() {
+        handlerAdapters.add(new DefaultControllerHandlerAdapter());
     }
 
     /**
@@ -76,16 +86,16 @@ public class DispatcherServlet extends HttpServlet {
         // 요청 URI에 매핑되는 Handler(Controller) 메소드 실행
         String requestURI = request.getRequestURI();
         String requestMethod = request.getMethod();
-        ModelAndView modelAndView = null;
         HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(requestURI, requestMethod);
-        Object instance = handlerMethod.getHandlerInstance();
 
+        ModelAndView modelAndView = null;
+        HandlerAdapter handlerAdapter = getHandlerAdapter(handlerMethod);
         try {
-            // 실제 Handler(Controller) 메소드 실행
-            modelAndView = (ModelAndView) handlerMethod.getMethod().invoke(instance, request, response);
+            modelAndView = handlerAdapter.handle(request, response, handlerMethod);
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
+
 
         //  ModelAndView 데이터를 request 속성에 추가
         if (!modelAndView.getModel().isEmpty()) {
@@ -136,5 +146,15 @@ public class DispatcherServlet extends HttpServlet {
         }
 
         return false;
+    }
+
+    private HandlerAdapter getHandlerAdapter(Object handler) {
+        for (HandlerAdapter adapter : handlerAdapters) {
+            if (adapter.supports(handler)) {
+                return adapter;
+            }
+        }
+
+        throw new IllegalArgumentException("No adapter for handler [" + handler.getClass() + "]");
     }
 }
