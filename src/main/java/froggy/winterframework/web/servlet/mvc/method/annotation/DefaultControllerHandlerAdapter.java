@@ -1,6 +1,8 @@
 package froggy.winterframework.web.servlet.mvc.method.annotation;
 
 import froggy.winterframework.stereotype.Controller;
+import froggy.winterframework.utils.DefaultTypeConverter;
+import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.annotation.RequestParamMethodArgumentResolver;
@@ -19,15 +21,16 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
-    private static final List<HandlerMethodArgumentResolver> resolvers = new ArrayList<>();
+    private final List<HandlerMethodArgumentResolver> resolvers = new ArrayList<>();
 
-    static {
+    public DefaultControllerHandlerAdapter() {
         initResolver();
     }
 
-    private static void initResolver() {
-        // Annotation-based Resolver
-        resolvers.add(new RequestParamMethodArgumentResolver());
+    private void initResolver() {
+        TypeConverter converter = new DefaultTypeConverter();
+
+        resolvers.add(new RequestParamMethodArgumentResolver(converter));
     }
 
     /**
