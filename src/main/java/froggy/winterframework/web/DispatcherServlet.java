@@ -83,10 +83,8 @@ public class DispatcherServlet extends HttpServlet {
             }
         }
 
-        // 요청 URI에 매핑되는 Handler(Controller) 메소드 실행
-        String requestURI = request.getRequestURI();
-        String requestMethod = request.getMethod();
-        HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(requestURI, requestMethod);
+        // 요청 URI에 매핑되는 Handler(Controller) 메소드 객체 찾기
+        HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(request);
 
         ModelAndView modelAndView = null;
         HandlerAdapter handlerAdapter = getHandlerAdapter(handlerMethod);

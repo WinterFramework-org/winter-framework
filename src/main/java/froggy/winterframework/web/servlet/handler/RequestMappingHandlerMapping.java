@@ -12,9 +12,12 @@ import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.RequestMappingInfo;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-
+import java.util.Set;
+import javax.servlet.http.HttpServletRequest;
 
 /**
  * {@link RequestMapping} 애노테이션을 스캔하여
@@ -27,7 +30,7 @@ import java.util.Map;
 public class RequestMappingHandlerMapping extends ApplicationContextSupport implements
     InitializingBean {
 
-    private final static Map<RequestMappingInfo, HandlerMethod> registry = new HashMap<>();
+    private final MappingRegistry mappingRegistry = new MappingRegistry();
 
     public RequestMappingHandlerMapping(ApplicationContext applicationContext) {
         super(applicationContext);
@@ -55,7 +58,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     }
 
     /**
-     * 지정된 Bean이 Handler({@link Controller})인지 확인 후, {@link #registry}에 등록
+     * 지정된 Bean이 Handler({@link Controller})인지 확인 후, {@link #mappingRegistry}에 등록
      *
      * @param beanName    Bean 이름
      * @param beanFactory BeanFactory 인스턴스
@@ -73,16 +76,16 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     /**
      * 주어진 Handler({@link Controller}) 클래스에서 {@link RequestMapping}이 선언된 메소드를 찾은 후 매핑등록 요청
      *
-     * @param handler Handler({@link Controller}) 클래스
+     * @param handlerType Handler({@link Controller}) 클래스
      */
-    public void detectHandlerMethods(Class<?> handler) {
+    public void detectHandlerMethods(Class<?> handlerType) {
         // 해당 클래스에서 `@RequestMapping`이 붙은 메소드를 찾음.
-        Map<Method, RequestMappingInfo> methods = selectMethods(handler);
-        Object handlerInstance = getApplicationContext().getBean(WinterUtils.resolveSimpleBeanName(handler));
+        Map<Method, RequestMappingInfo> methods = selectMethods(handlerType);
+
 
         // 찾은 메소드와 URL 정보를 `registerHandlerMethodMapping()`을 통해 매핑 등록.
         methods.forEach((method, requestMappingInfo) -> {
-            registerHandlerMethodMapping(handlerInstance, requestMappingInfo, method);
+            registerHandlerMethodMapping(handlerType, requestMappingInfo, method);
         });
     }
 
@@ -150,17 +153,19 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     }
 
     /**
-     * URL 패턴과 실행할 메소드를 {@link #registry}에 등록.
+     * URL 패턴과 실행할 메소드를 {@link #mappingRegistry}에 등록.
      *
-     * @param handlerInstance    Handler({@link Controller}) 인스턴스
+     * @param handlerType    Handler({@link Controller}) Type
      * @param requestMappingInfo 매핑 정보 (URL 패턴) {@link RequestMappingInfo}
      * @param method             실행할 {@link Method}
      * @throws IllegalStateException 동일한 URL Pattern과 HTTP Method가 이미 등록된 경우 예외 발생
      */
-    private void registerHandlerMethodMapping(Object handlerInstance,
+    private void registerHandlerMethodMapping(Class<?> handlerType,
         RequestMappingInfo requestMappingInfo, Method method) throws RuntimeException {
-        HandlerMethod handlerMethod = registry.put(requestMappingInfo,
-            new HandlerMethod(handlerInstance, method));
+
+        Object handlerInstance = getApplicationContext().getBean(WinterUtils.resolveSimpleBeanName(handlerType));
+        HandlerMethod handlerMethod = mappingRegistry.addMappings(
+            requestMappingInfo, new HandlerMethod(handlerInstance, handlerType, method));
 
         if (handlerMethod != null) {
             throw new IllegalStateException("Duplicate mapping detected: '" + requestMappingInfo.getUrlPattern() + "':(" + handlerMethod.getHandlerInstance().getClass() + ")");
@@ -170,11 +175,95 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     /**
      * URL 패턴에 해당하는 Handler({@link Controller}) 메소드를 반환.
      *
-     * @param urlPattern 요청 URL 패턴
+     * @param request Request객체
      * @return 매핑된 {@link HandlerMethod}, 매핑이 없으면 {@code null} 반환
      */
-    public HandlerMethod getHandlerMethod(String urlPattern, String requestMethod) {
-        return registry.get(new RequestMappingInfo(urlPattern, HttpMethod.valueOf(requestMethod)));
+    public HandlerMethod getHandlerMethod(HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        String requestMethod = request.getMethod();
+
+        HandlerMethod handlerMethod = lookupHandlerMethod(requestURI, requestMethod);
+        if (handlerMethod == null) {
+            throw new IllegalStateException("No matching handler method found for request [URI: " + requestURI + ", Method: " + requestMethod + "]");
+        }
+
+        extractPathVariables(handlerMethod, request);
+
+        return handlerMethod;
     }
 
+    private HandlerMethod lookupHandlerMethod(String requestURI, String requestMethod) {
+        HandlerMethod directPathMatch =
+            mappingRegistry.getMappingsByDirectPath(requestURI, requestMethod);
+
+        if (directPathMatch != null) return directPathMatch;
+
+        return mappingRegistry.getMappingsByPathVariable(requestURI, requestMethod);
+    }
+
+    private void extractPathVariables(HandlerMethod handlerMethod, HttpServletRequest request) {
+        if (!handlerMethod.isHasPathVariable()) return;
+
+        String urlPattern = extractUrlPattern(handlerMethod.getHandlerType()) + extractUrlPattern(handlerMethod.getMethod());
+        String[] urlPatternParts = urlPattern.split("/");
+        String[] requestURIParts = request.getRequestURI().split("/");
+
+        HashMap<String, String> pathVariableMap = new HashMap<>();
+        for (int i = 0; i < urlPatternParts.length; i++) {
+            if (!urlPatternParts[i].equals(requestURIParts[i])) {
+                String key = urlPatternParts[i].substring(1, urlPatternParts[i].length() - 1);
+                pathVariableMap.put(key, requestURIParts[i]);
+            }
+        }
+
+        request.setAttribute("uriTemplateVariables", pathVariableMap);
+    }
+
+    class MappingRegistry {
+        private final Map<RequestMappingInfo, HandlerMethod> directPathHandlerMap = new HashMap<>();
+        private final Map<RequestMappingInfo, HandlerMethod> pathVariableHandlerMap = new HashMap<>();
+
+        public HandlerMethod getMappingsByDirectPath(String requestURI, String requestMethod) {
+            return directPathHandlerMap.get(new RequestMappingInfo(requestURI, HttpMethod.valueOf(requestMethod)));
+        }
+
+        public HandlerMethod addMappings(RequestMappingInfo requestMappingInfo, HandlerMethod handlerMethod) {
+            if (handlerMethod.isHasPathVariable()) {
+                return pathVariableHandlerMap.put(requestMappingInfo, handlerMethod);
+            }
+
+            return directPathHandlerMap.put(requestMappingInfo, handlerMethod);
+        }
+
+        public HandlerMethod getMappingsByPathVariable(String requestURI, String requestMethod) {
+            for (Map.Entry<RequestMappingInfo, HandlerMethod> entry : pathVariableHandlerMap.entrySet()) {
+                if (isMatchingPattern(entry.getKey().getUrlPattern(), requestURI) && isMatchingMethod(entry.getKey().getHttpMethods(), requestMethod)) {
+                    return entry.getValue();
+                }
+            }
+
+            return null;
+        }
+
+        private boolean isMatchingPattern(String pattern, String requestURI) {
+            String[] patternParts = pattern.split("/");
+            String[] requestParts = requestURI.split("/");
+
+            if (patternParts.length != requestParts.length) return false;
+
+            for (int i = 0; i < patternParts.length; i++) {
+                boolean isVariablePattern = patternParts[i].startsWith("{") && patternParts[i].endsWith("}");
+                if (!isVariablePattern && !patternParts[i].equals(requestParts[i])) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private boolean isMatchingMethod(Set<HttpMethod> httpMethods, String requestMethod) {
+            HashSet<HttpMethod> requestHttpMethod = new HashSet<>(Collections.singleton(HttpMethod.valueOf(requestMethod)));
+            return !Collections.disjoint(httpMethods, requestHttpMethod);
+        }
+    }
 }

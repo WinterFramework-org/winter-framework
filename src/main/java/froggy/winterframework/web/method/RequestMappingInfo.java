@@ -15,12 +15,21 @@ import java.util.Set;
  */
 public class RequestMappingInfo {
 
-    String urlPattern;
-    Set<HttpMethod> httpMethods;
+    private String urlPattern;
+    private Set<HttpMethod> httpMethods;
 
     public RequestMappingInfo(String urlPattern, HttpMethod... httpMethods) {
+
         this.urlPattern = urlPattern;
         this.httpMethods = new LinkedHashSet<>(Arrays.asList(httpMethods));
+    }
+
+    public String getUrlPattern() {
+        return urlPattern;
+    }
+
+    public Set<HttpMethod> getHttpMethods() {
+        return httpMethods;
     }
 
     /**
@@ -31,13 +40,19 @@ public class RequestMappingInfo {
      */
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         RequestMappingInfo other = (RequestMappingInfo) o;
+        if (Collections.disjoint(this.httpMethods, other.httpMethods)) {
+            return false;
+        }
 
-        return Objects.equals(urlPattern, other.urlPattern)
-            && !Collections.disjoint(this.httpMethods, other.httpMethods);
+        if (!matchUrlPattern(this.urlPattern, ((RequestMappingInfo) o).getUrlPattern())) {
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -45,8 +60,26 @@ public class RequestMappingInfo {
         return Objects.hash(urlPattern);
     }
 
-    public String getUrlPattern() {
-        return urlPattern;
+    private boolean matchUrlPattern(String pattern, String url) {
+        String[] patternParts = pattern.split("/");
+        String[] urlParts = url.split("/");
+
+        // @PathVariable로 등록되어있는 UrlPattern인지 확인
+        if (! pattern.contains("*")) {
+            return pattern.equals(url);
+        }
+
+        if (patternParts.length != urlParts.length) {
+            return false;
+        }
+
+        for (int i = 0; i < patternParts.length; i++) {
+            if (!patternParts[i].equals("/*") && !patternParts[i].equals(urlParts[i])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 }

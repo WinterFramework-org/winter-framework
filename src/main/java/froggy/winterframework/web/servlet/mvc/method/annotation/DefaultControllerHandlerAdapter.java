@@ -5,6 +5,7 @@ import froggy.winterframework.utils.DefaultTypeConverter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.method.HandlerMethod;
+import froggy.winterframework.web.method.annotation.PathVariableMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.RequestParamMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import froggy.winterframework.web.servlet.HandlerAdapter;
@@ -31,6 +32,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         TypeConverter converter = new DefaultTypeConverter();
 
         resolvers.add(new RequestParamMethodArgumentResolver(converter));
+        resolvers.add(new PathVariableMethodArgumentResolver(converter));
     }
 
     /**
