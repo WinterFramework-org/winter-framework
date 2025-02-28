@@ -94,17 +94,47 @@ public class DispatcherServlet extends HttpServlet {
             throw new RuntimeException(e);
         }
 
-
         //  ModelAndView 데이터를 request 속성에 추가
-        if (!modelAndView.getModel().isEmpty()) {
-            for (Map.Entry<String, Object> entry: modelAndView.getModel().entrySet()) {
-                request.setAttribute(entry.getKey(), entry.getValue());
-            }
-        }
+        bindProcessResult(request, modelAndView);
 
         // view 렌더링
+        render(request, response, modelAndView);
+    }
+
+    /**
+     * View를 렌더링하는 메서드
+     *
+     * @param request       HttpServletRequest 객체
+     * @param response      HttpServletResponse 객체
+     * @param modelAndView  렌더링할 View와 Model을 포함한 객체
+     * @throws ServletException 서블릿 예외 발생 시
+     * @throws IOException      입출력 예외 발생 시
+     */
+    private void render(HttpServletRequest request, HttpServletResponse response,
+        ModelAndView modelAndView) throws ServletException, IOException {
         RequestDispatcher dispatcher = request.getRequestDispatcher(modelAndView.getView());
         dispatcher.forward(request, response);
+    }
+
+    /**
+     * 핸들러를 통해 처리된 결과를 View 렌더링 전에 HttpServletRequest에 바인딩한다.
+     *
+     * @param request
+     * @param modelAndView
+     */
+    private void bindProcessResult(HttpServletRequest request, ModelAndView modelAndView) {
+        if (modelAndView.getView() == null) {
+            throw new IllegalStateException("view must not be null");
+        }
+
+        Map<String, Object> model = modelAndView.getModel();
+        if (model == null || model.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, Object> entry: model.entrySet()) {
+            request.setAttribute(entry.getKey(), entry.getValue());
+        }
     }
 
     /**
