@@ -176,6 +176,12 @@ public class DispatcherServlet extends HttpServlet {
         return false;
     }
 
+    /**
+     * 주어진 Handler(Controller)를 처리할 수 있는 {@link HandlerAdapter}를 찾는다
+     *
+     * @param handler 요청을 처리할 핸들러 객체
+     * @return HandlerAdapter
+     */
     private HandlerAdapter getHandlerAdapter(Object handler) {
         for (HandlerAdapter adapter : handlerAdapters) {
             if (adapter.supports(handler)) {
