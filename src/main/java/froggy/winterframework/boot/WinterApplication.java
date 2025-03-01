@@ -37,7 +37,7 @@ public class WinterApplication {
      * @return 초기화된 {@link ApplicationContext}
      * @throws Exception 실행 중 발생하는 예외
      */
-    private ApplicationContext run() throws Exception{
+    private ApplicationContext run() throws Exception {
         // 애플리케이션의 빈 관리 및 컨텍스트를 초기화하기 위한 기본 객체
         ApplicationContext context = new ApplicationContext();
 
@@ -64,7 +64,6 @@ public class WinterApplication {
      */
     private void initContext(ApplicationContext context) {
         BeanFactory beanFactory = context.getBeanFactory();
-
 
         String beanName = WinterUtils.resolveSimpleBeanName(RequestMappingHandlerMapping.class);
 
