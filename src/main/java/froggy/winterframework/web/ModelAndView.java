@@ -12,14 +12,28 @@ import java.util.Map;
 public class ModelAndView {
     private String view;
     private Map<String, Object> model;
+    private boolean requestHandled;
 
     public ModelAndView(String view) {
         this(view, new HashMap<String, Object>());
     }
 
     public ModelAndView(String view, Map<String, Object> model) {
+        this(view, model, false);
+    }
+
+    public ModelAndView(String view, Map<String, Object> model, boolean requestHandled) {
         this.view = view;
         this.model = model;
+        this.requestHandled = requestHandled;
+    }
+
+    public static ModelAndView createModelAndView(Object returnValue) {
+        if (returnValue instanceof ModelAndView) {
+            return (ModelAndView) returnValue;
+        }
+
+        return new ModelAndView(null, null, true);
     }
 
     public String getView() {
@@ -32,5 +46,13 @@ public class ModelAndView {
 
     public void setModel(Map<String, Object> model) {
         this.model = model;
+    }
+
+    public boolean isRequestHandled() {
+        return requestHandled;
+    }
+
+    public void setRequestHandled(boolean requestHandled) {
+        this.requestHandled = requestHandled;
     }
 }

@@ -112,6 +112,10 @@ public class DispatcherServlet extends HttpServlet {
      */
     private void render(HttpServletRequest request, HttpServletResponse response,
         ModelAndView modelAndView) throws ServletException, IOException {
+        if (modelAndView.isRequestHandled()) {
+            return;
+        }
+
         RequestDispatcher dispatcher = request.getRequestDispatcher(modelAndView.getView());
         dispatcher.forward(request, response);
     }
