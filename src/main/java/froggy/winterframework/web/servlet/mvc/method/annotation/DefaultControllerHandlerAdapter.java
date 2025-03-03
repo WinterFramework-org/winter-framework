@@ -5,9 +5,11 @@ import froggy.winterframework.utils.DefaultTypeConverter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.method.HandlerMethod;
+import froggy.winterframework.web.method.annotation.ModelAndViewMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.PathVariableMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.RequestParamMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
+import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
 import froggy.winterframework.web.servlet.HandlerAdapter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -23,9 +25,11 @@ import javax.servlet.http.HttpServletResponse;
 public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
     private final List<HandlerMethodArgumentResolver> resolvers = new ArrayList<>();
+    private final List<HandlerMethodReturnValueHandler> returnValueHandlers = new ArrayList<>();
 
     public DefaultControllerHandlerAdapter() {
         initResolver();
+        initReturnValueHandlers();
     }
 
     private void initResolver() {
@@ -33,6 +37,10 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
         resolvers.add(new RequestParamMethodArgumentResolver(converter));
         resolvers.add(new PathVariableMethodArgumentResolver(converter));
+    }
+
+    private void initReturnValueHandlers() {
+        returnValueHandlers.add(new ModelAndViewMethodReturnValueHandler());
     }
 
     /**
@@ -69,7 +77,18 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         Object[] args = getMethodArgumentValues(request, method.getParameters());
 
         try {
-            return (ModelAndView) method.invoke(instance, args);
+            Object returnValue = method.invoke(instance, args);
+
+            for (HandlerMethodReturnValueHandler returnValueHandler : returnValueHandlers) {
+                if (returnValueHandler.supportsReturnType(handlerMethod)) {
+                    returnValueHandler.handleReturnValue(returnValue, returnValue.getClass(), request, response);
+                    return (ModelAndView) returnValue;
+                }
+            }
+
+            throw new IllegalStateException("No suitable HandlerMethodReturnValueHandler found for return type: "
+                + returnValue.getClass().getName() + " in method: "
+                + instance.getClass().getSimpleName() + "#" + method.getName());
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new IllegalStateException("Failed to invoke handler method: " + instance.getClass() + "#" + method.getName(), e);
         }
