@@ -99,20 +99,33 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     private Map<Method, RequestMappingInfo> selectMethods(Class<?> handler) {
         Map<Method, RequestMappingInfo> results = new HashMap<>();
 
-        String baseUrl = extractUrlPattern(handler);
+        RequestMappingInfo baseMapping = createRequestMappingInfo(handler);
         for (Method method : handler.getMethods()) {
             if (method.isAnnotationPresent(RequestMapping.class)) {
-                String methodUrl = extractUrlPattern(method);
-                String mappedUrl = combineUrl(baseUrl, methodUrl);
+                RequestMappingInfo methodMapping = createRequestMappingInfo(method);
 
-                RequestMapping requestMapping = method.getAnnotation(RequestMapping.class);
-                HttpMethod[] httpMethods = requestMapping.httpMethod();
-
-                results.put(method, new RequestMappingInfo(mappedUrl, httpMethods));
+                // 기본 매핑과 메서드 매핑을 결합하여 최종 RequestMappingInfo 생성
+                RequestMappingInfo requestInfo = baseMapping.combine(methodMapping);
+                results.put(method,requestInfo);
             }
         }
 
         return results;
+    }
+
+    /**
+     * 주어진 어노테이션 요소에서 {@link RequestMapping} 정보를 생성.
+     *
+     * @param e 어노테이션이 적용된 요소
+     * @return RequestMapping 어노테이션 기반의 RequestMappingInfo 객체, 또는 빈 객체
+     */
+    protected RequestMappingInfo createRequestMappingInfo(AnnotatedElement e) {
+        if (!e.isAnnotationPresent(RequestMapping.class)) {
+            return RequestMappingInfo.emptyRequestMappingInfo();
+        }
+        RequestMapping annotation = e.getAnnotation(RequestMapping.class);
+
+        return new RequestMappingInfo(annotation.urlPattern(), annotation.httpMethod());
     }
 
     /**
@@ -126,30 +139,6 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
         RequestMapping mapping = targetElement .getAnnotation(RequestMapping.class);
 
         return mapping != null ? mapping.urlPattern() : "";
-    }
-
-    /**
-     * 클래스 레벨의 Mapping된 URL과 메서드 레벨의 URL Mapping된 URL을 결합.
-     *
-     * @param baseUrl    클래스 레벨의 URL Mapping
-     * @param methodUrl  메서드 레벨의 URL Mapping
-     * @return Mapped URL
-     */
-    private String combineUrl(String baseUrl, String methodUrl) {
-        if (baseUrl ==  null) baseUrl = "";
-        if (methodUrl == null) methodUrl = "";
-
-        // baseUrl의 마지막 "/" 제거
-        if (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
-
-        // 비어있지 않고 '/'로 시작하지 않으면 URL 앞에 '/'를 추가
-        if (!methodUrl.isEmpty() && !methodUrl.startsWith("/")) {
-            methodUrl = "/" + methodUrl;
-        }
-
-        return baseUrl + methodUrl;
     }
 
     /**

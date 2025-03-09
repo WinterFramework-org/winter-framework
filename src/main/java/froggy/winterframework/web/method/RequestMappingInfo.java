@@ -19,8 +19,59 @@ public class RequestMappingInfo {
     private Set<HttpMethod> httpMethods;
 
     public RequestMappingInfo(String urlPattern, HttpMethod... httpMethods) {
-        this.urlPattern = urlPattern;
-        this.httpMethods = new LinkedHashSet<>(Arrays.asList(httpMethods));
+        this(urlPattern, new LinkedHashSet<>(Arrays.asList(httpMethods)));
+    }
+
+    public RequestMappingInfo(String urlPattern, Set<HttpMethod> httpMethods) {
+        this.urlPattern = initUrlPattern(urlPattern);
+        this.httpMethods = httpMethods;
+    }
+
+    public static RequestMappingInfo emptyRequestMappingInfo() {
+        return new RequestMappingInfo("", Collections.emptySet());
+    }
+
+    /**
+     * URL 패턴 초기화.
+     *
+     * <p>불필요한 '/'가 없도록 조정하여 반환</p>
+     *
+     * @param urlPattern 초기화할 URL 패턴
+     * @return 정규화된 URL 패턴
+     */
+    private String initUrlPattern(String urlPattern) {
+        if (urlPattern == null || urlPattern.isEmpty()) {
+            return "";
+        }
+
+        // URL 앞 "/" 추가
+        urlPattern = urlPattern.startsWith("/") ? urlPattern : "/" + urlPattern;
+
+        // URL 마지막 "/" 제거
+        return urlPattern.endsWith("/") ? urlPattern.substring(0, urlPattern.length() - 1) : urlPattern;
+    }
+
+    /**
+     * 현재 RequestMappingInfo와 다른 RequestMappingInfo를 결합.
+     *
+     * @param other 결합할 다른 RequestMappingInfo
+     * @return 결합된 RequestMappingInfo
+     */
+    public RequestMappingInfo combine(RequestMappingInfo other) {
+        return new RequestMappingInfo(
+            combineUrl(this.urlPattern, other.urlPattern),
+            combineHttpMethods(this.httpMethods, other.httpMethods)
+        );
+    }
+
+    private String combineUrl(String baseUrl, String additionalUrl) {
+        return baseUrl + additionalUrl;
+    }
+
+    private Set<HttpMethod> combineHttpMethods(Set<HttpMethod> firstMethods, Set<HttpMethod> secondMethods) {
+        Set<HttpMethod> combined = new LinkedHashSet<>(firstMethods);
+        combined.addAll(secondMethods);
+        return combined;
     }
 
     public String getUrlPattern() {
