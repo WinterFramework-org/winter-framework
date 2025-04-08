@@ -59,7 +59,28 @@ public class BeanFactory extends SingletonBeanRegistry {
     }
 
     /**
-     * 주어진 클래스에 대한 {@link BeanDefinition}을 등록.
+     * 주어진 클래스 타입으로 등록된 Bean 이름들을 반환
+     *
+     * @param clazz 대상 클래스
+     * @return 해당 타입의 Bean 이름 목록
+     */
+    public List<String> getBeanNamesForType(Class<?> clazz) {
+        List<String> result = new ArrayList<>();
+
+        for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {
+            String beanName = entry.getKey();
+            BeanDefinition beanDefinition = entry.getValue();
+
+            if (clazz.isAssignableFrom(beanDefinition.getBeanClass())) {
+                result.add(beanName);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 주어진 클래스에 대한 {@link BeanDefinition}을 등록
      *
      * @param clazz Bean으로 등록할 클래스
      */
@@ -95,6 +116,26 @@ public class BeanFactory extends SingletonBeanRegistry {
      */
     public Object getBean(String beanName) throws RuntimeException {
         return doGetBean(beanName);
+    }
+
+    /**
+     * 등록된 Bean을 조회하여 반환하는 외부 메소드.
+     *
+     * <p>Singleton Bean이 존재하면 반환하고, 없으면 새로 생성
+     *
+     * @param beanName          조회할 Bean의 이름
+     * @param requiredType      반환할 Bean의 타입
+     * @return                  조회된 Bean 객체를 지정된 타입으로 캐스팅하여 반환
+     * @throws RuntimeException 반환된 Bean이 요구하는 타입이 아닐 경우 발생
+     */
+    public <T> T getBean(String beanName, Class<T> requiredType) throws RuntimeException {
+        Object bean = doGetBean(beanName);
+
+        if (requiredType != null && !requiredType.isInstance(bean)) {
+            throw new RuntimeException("Bean named '" + beanName + "' is not of required type: " + requiredType.getName());
+        }
+
+        return requiredType != null ? requiredType.cast(bean) : (T) bean;
     }
 
     /**
