@@ -1,14 +1,22 @@
 package froggy.winterframework.boot;
 
 import froggy.winterframework.beans.factory.config.BeanDefinition;
+import froggy.winterframework.beans.factory.config.BeanFactoryPostProcessor;
+import froggy.winterframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.DispatcherServlet;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.apache.jasper.servlet.JspServlet;
@@ -90,7 +98,32 @@ public class WinterApplication {
     private void refreshContext(ApplicationContext context) {
         registerBeanDefinition(context.getBeanFactory());
 
+        postProcessBeanFactory(context.getBeanFactory());
+
         finishBeanFactoryInitialization(context.getBeanFactory());
+    }
+
+    /**
+     * 등록된 BeanFactoryPostProcessor들을 조회하여, 대상 BeanFactory에 대해 후처리 작업을 실행
+     *
+     * @param factory 후처리 작업이 수행될 BeanFactory 인스턴스
+     */
+    private void postProcessBeanFactory(BeanFactory factory) {
+        // 'BeanDefinitionRegistryPostProcessor' 후처리 작업 실행
+        for (String ppName : factory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class)) {
+            BeanDefinitionRegistryPostProcessor pp =
+                factory.getBean(ppName, BeanDefinitionRegistryPostProcessor.class);
+
+            pp.postProcessBeanDefinitionRegistry(factory);
+        }
+
+        // 'BeanFactoryPostProcessor' 후처리 작업 실행
+        for (String ppName : factory.getBeanNamesForType(BeanFactoryPostProcessor.class)) {
+            BeanFactoryPostProcessor pp =
+                factory.getBean(ppName, BeanFactoryPostProcessor.class);
+
+            pp.postProcessBeanFactory(factory);
+        }
     }
 
     /**
@@ -99,19 +132,34 @@ public class WinterApplication {
      * @param beanFactory BeanFactory 인스턴스
      */
     public void registerBeanDefinition(BeanFactory beanFactory) {
-        Set<String> basePackageClassNames = getFullyQualifiedClassNamesByBasePackage();
+        Set<String> classNames = getAllFullyQualifiedClassNames();
 
-        Set<BeanDefinition> beanDefinitions = findComponents(basePackageClassNames);
+        Set<BeanDefinition> beanDefinitions = findComponents(classNames);
         for (BeanDefinition beanDefinition : beanDefinitions) {
             beanFactory.registerBeanDefinition(beanDefinition.getBeanClass());
         }
     }
 
+    /**
+     * 내부/외부의 패키지를 스캔하여
+     * FQCN의 Set을 반환
+     *
+     * @return 내부와 외부의 클래스 이름을 모두 포함하는 Set
+     */
+    private Set<String> getAllFullyQualifiedClassNames() {
+        Set<String> basePackageClassNames = getFullyQualifiedClassNamesByBasePackage();
+
+        Set<String> externalLibraryClassNames = getFullyQualifiedClassNamesFromExternalLibrary();
+        basePackageClassNames.addAll(externalLibraryClassNames);
+
+        return basePackageClassNames;
+    }
+
 
     /**
-     * 패키지의 모든 클래스를 스캔하여 전체 클래스명을 Set으로 반환.
+     * 내부 패키지의 모든 클래스를 스캔하여 FQCN의 Set으로 반환.
      *
-     * @return 전체 클래스명을 담은 Set
+     * @return FQCN의 Set
      */
     private Set<String> getFullyQualifiedClassNamesByBasePackage() {
         URL resource = Thread.currentThread().getContextClassLoader().getResource("");
@@ -123,6 +171,47 @@ public class WinterApplication {
             scanDirectory(directory, "", fullQualifiedClassNames);
         }
         return fullQualifiedClassNames;
+    }
+
+    /**
+     * 외부 패키지의 모든 클래스를 스캔하여 FQCN의 Set으로 반환.
+     *
+     * @return FQCN의 Set
+     */
+    private Set<String> getFullyQualifiedClassNamesFromExternalLibrary() {
+        Set<String> classNames = new HashSet<>();
+        try {
+            Enumeration<URL> autoConfigResources =
+                ClassLoader.getSystemResources("META-INF/winter.autoconfig");
+
+            while(autoConfigResources.hasMoreElements()) {
+                URL url = autoConfigResources.nextElement();
+                classNames.addAll(readClassName(url));
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read META-INF/winter.autoconfig: " + e.getMessage(), e);
+        }
+
+        return classNames;
+    }
+
+    private Set<String> readClassName(URL url) throws IOException {
+        Set<String> classNames = new HashSet<>();
+
+        try (InputStream is = url.openStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+
+            String className;
+            while ((className = reader.readLine()) != null) {
+                className = className.trim();
+                if (className.isEmpty() || className.startsWith("//")) continue;
+
+                classNames.add(className);
+            }
+        }
+
+        return classNames;
     }
 
     /**
