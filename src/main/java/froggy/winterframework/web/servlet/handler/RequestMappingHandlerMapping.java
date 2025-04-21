@@ -104,7 +104,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
             if (method.isAnnotationPresent(RequestMapping.class)) {
                 RequestMappingInfo methodMapping = createRequestMappingInfo(method);
 
-                // 기본 매핑과 메서드 매핑을 결합하여 최종 RequestMappingInfo 생성
+                // 클래스 레벨 매핑 정보와 메서드 레벨 매핑 정보를 결합하여 최종 RequestMappingInfo 생성
                 RequestMappingInfo requestInfo = baseMapping.combine(methodMapping);
                 results.put(method,requestInfo);
             }
