@@ -1,5 +1,6 @@
 package froggy.winterframework.web.method;
 
+import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.bind.annotation.PathVariable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -18,7 +19,6 @@ public class HandlerMethod {
     private final Parameter[] parameters;
     private final Class<?>[] parameterTypes;
     private final Class<?> returnType;
-    private final boolean hasPathVariable;
 
     private HandlerMethod(Object handlerInstance, Class<?> handlerType, Method method, Parameter[] parameters,
         Class<?>[] parameterTypes, Class<?> returnType) {
@@ -28,7 +28,6 @@ public class HandlerMethod {
         this.parameters = parameters;
         this.parameterTypes = parameterTypes;
         this.returnType = returnType;
-        this.hasPathVariable = hasPathVariable();
     }
 
     public HandlerMethod(Object handlerInstance, Class<?> handlerType, Method method) {
@@ -97,28 +96,12 @@ public class HandlerMethod {
         return returnType;
     }
 
-
-    /**
-     * 현재 파라미터 목록에 `@PathVariable`이 포함되어 있는지 여부 반환
-     *
-     * @return {@code true}이면 `@PathVariable`이 존재, 그렇지 않으면 {@code false}
-     */
-    public boolean isHasPathVariable() {
-        return hasPathVariable;
-    }
-
-
     /**
      * 파라미터 목록에서 `@PathVariable` 애노테이션이 존재하는지 확인
      *
      * @return {@code true}이면 `@PathVariable`이 존재, 그렇지 않으면 {@code false}
      */
-    private boolean hasPathVariable() {
-        for (Parameter p : this.parameters) {
-            if (p.isAnnotationPresent(PathVariable.class)) {
-                return true;
-            }
-        }
-        return false;
+    public boolean hasPathVariable() {
+        return WinterUtils.hasAnnotation(method, PathVariable.class);
     }
 }

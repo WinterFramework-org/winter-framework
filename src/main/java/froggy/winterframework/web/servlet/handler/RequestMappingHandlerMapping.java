@@ -191,7 +191,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     }
 
     private void extractPathVariables(HandlerMethod handlerMethod, HttpServletRequest request) {
-        if (!handlerMethod.isHasPathVariable()) return;
+        if (!handlerMethod.hasPathVariable()) return;
 
         String urlPattern = extractUrlPattern(handlerMethod.getHandlerType()) + extractUrlPattern(handlerMethod.getMethod());
         String[] urlPatternParts = urlPattern.split("/");
@@ -217,7 +217,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
         }
 
         public HandlerMethod addMappings(RequestMappingInfo requestMappingInfo, HandlerMethod handlerMethod) {
-            if (handlerMethod.isHasPathVariable()) {
+            if (handlerMethod.hasPathVariable()) {
                 return pathVariableHandlerMap.put(requestMappingInfo, handlerMethod);
             }
 
