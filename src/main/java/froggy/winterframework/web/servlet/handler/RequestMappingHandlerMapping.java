@@ -136,7 +136,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
      * @return 추출된 URL 패턴 문자열, 어노테이션이 없으면 ""
      */
     private String extractUrlPattern(AnnotatedElement targetElement) {
-        RequestMapping mapping = targetElement .getAnnotation(RequestMapping.class);
+        RequestMapping mapping = targetElement.getAnnotation(RequestMapping.class);
 
         return mapping != null ? mapping.urlPattern() : "";
     }
