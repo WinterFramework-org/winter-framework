@@ -59,18 +59,23 @@ public class RequestMappingInfo {
      */
     public RequestMappingInfo combine(RequestMappingInfo other) {
         return new RequestMappingInfo(
-            combineUrl(this.urlPattern, other.urlPattern),
-            combineHttpMethods(this.httpMethods, other.httpMethods)
+            combineUrl(other),
+            combineHttpMethods(other)
         );
     }
 
-    private String combineUrl(String baseUrl, String additionalUrl) {
-        return baseUrl + additionalUrl;
+    private String combineUrl(RequestMappingInfo other) {
+        return this.urlPattern + other.urlPattern;
     }
 
-    private Set<HttpMethod> combineHttpMethods(Set<HttpMethod> firstMethods, Set<HttpMethod> secondMethods) {
-        Set<HttpMethod> combined = new LinkedHashSet<>(firstMethods);
-        combined.addAll(secondMethods);
+    private Set<HttpMethod> combineHttpMethods(RequestMappingInfo other) {
+        // 클래스 레벨과 메서드레벨 모두 HttpMethod가 명시되지 않은 경우 모든 메서드 허용
+        if (this.httpMethods.isEmpty() && other.httpMethods.isEmpty()) {
+            return new LinkedHashSet<>(Arrays.asList(HttpMethod.values()));
+        }
+
+        Set<HttpMethod> combined = new LinkedHashSet<>(this.httpMethods);
+        combined.addAll(other.httpMethods);
         return combined;
     }
 
