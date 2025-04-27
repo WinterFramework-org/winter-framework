@@ -102,6 +102,12 @@ public class HandlerMethod {
      * @return {@code true}이면 `@PathVariable`이 존재, 그렇지 않으면 {@code false}
      */
     public boolean hasPathVariable() {
-        return WinterUtils.hasAnnotation(method, PathVariable.class);
+        for (Parameter p : this.parameters) {
+            if (WinterUtils.hasAnnotation(p, PathVariable.class)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
