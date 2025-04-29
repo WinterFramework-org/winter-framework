@@ -20,7 +20,10 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.apache.jasper.servlet.JspServlet;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
@@ -270,7 +273,16 @@ public class WinterApplication {
      * Embedded WAS 실행
      */
     private void initServer(ApplicationContext applicationContext) throws Exception {
-        Server server = new Server(8080);
+        Server server = new Server();
+
+        // form-urlencoded 요청을 POST, PUT, PATCH, DELETE에서도 파싱 가능하게 설정
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setFormEncodedMethods("POST", "PUT", "PATCH", "DELETE");
+
+        ServerConnector connector =
+            new ServerConnector(server, new HttpConnectionFactory(httpConfig));
+        connector.setPort(8080);
+        server.addConnector(connector);
 
         WebAppContext webAppContext = new WebAppContext();
         webAppContext.setContextPath("/");
