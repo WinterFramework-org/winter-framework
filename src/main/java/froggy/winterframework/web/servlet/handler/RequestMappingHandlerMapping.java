@@ -6,8 +6,8 @@ import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.context.support.ApplicationContextSupport;
 import froggy.winterframework.stereotype.Controller;
 import froggy.winterframework.utils.WinterUtils;
-import froggy.winterframework.web.bind.annotation.HttpMethod;
 import froggy.winterframework.web.bind.annotation.RequestMapping;
+import froggy.winterframework.web.bind.annotation.RequestMethod;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.RequestMappingInfo;
 import java.lang.reflect.AnnotatedElement;
@@ -125,7 +125,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
         }
         RequestMapping annotation = e.getAnnotation(RequestMapping.class);
 
-        return new RequestMappingInfo(annotation.urlPattern(), annotation.httpMethod());
+        return new RequestMappingInfo(annotation.value(), annotation.method());
     }
 
     /**
@@ -138,7 +138,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
     private String extractUrlPattern(AnnotatedElement targetElement) {
         RequestMapping mapping = targetElement.getAnnotation(RequestMapping.class);
 
-        return mapping != null ? mapping.urlPattern() : "";
+        return mapping != null ? mapping.value() : "";
     }
 
     /**
@@ -213,7 +213,7 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
         private final Map<RequestMappingInfo, HandlerMethod> pathVariableHandlerMap = new HashMap<>();
 
         public HandlerMethod getMappingsByDirectPath(String requestURI, String requestMethod) {
-            return directPathHandlerMap.get(new RequestMappingInfo(requestURI, HttpMethod.valueOf(requestMethod)));
+            return directPathHandlerMap.get(new RequestMappingInfo(requestURI, RequestMethod.valueOf(requestMethod)));
         }
 
         public HandlerMethod addMappings(RequestMappingInfo requestMappingInfo, HandlerMethod handlerMethod) {
@@ -250,9 +250,9 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
             return true;
         }
 
-        private boolean isMatchingMethod(Set<HttpMethod> httpMethods, String requestMethod) {
-            HashSet<HttpMethod> requestHttpMethod = new HashSet<>(Collections.singleton(HttpMethod.valueOf(requestMethod)));
-            return !Collections.disjoint(httpMethods, requestHttpMethod);
+        private boolean isMatchingMethod(Set<RequestMethod> requestMethods, String requestMethod) {
+            HashSet<RequestMethod> requestRequestMethod = new HashSet<>(Collections.singleton(RequestMethod.valueOf(requestMethod)));
+            return !Collections.disjoint(requestMethods, requestRequestMethod);
         }
     }
 }

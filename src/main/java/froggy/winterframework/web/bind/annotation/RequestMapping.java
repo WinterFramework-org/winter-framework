@@ -14,6 +14,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface  RequestMapping {
-    String urlPattern() default "";
-    HttpMethod[] httpMethod() default {};
+    String value() default "";
+    RequestMethod[] method() default {};
 }

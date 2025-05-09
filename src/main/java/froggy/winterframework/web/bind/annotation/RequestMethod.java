@@ -1,5 +1,5 @@
 package froggy.winterframework.web.bind.annotation;
 
-public enum HttpMethod {
+public enum RequestMethod {
     GET, POST, PUT, DELETE, PATCH, OPTIONS;
 }

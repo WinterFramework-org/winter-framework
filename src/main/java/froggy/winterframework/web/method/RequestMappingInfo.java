@@ -1,6 +1,6 @@
 package froggy.winterframework.web.method;
 
-import froggy.winterframework.web.bind.annotation.HttpMethod;
+import froggy.winterframework.web.bind.annotation.RequestMethod;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -16,15 +16,15 @@ import java.util.Set;
 public class RequestMappingInfo {
 
     private String urlPattern;
-    private Set<HttpMethod> httpMethods;
+    private Set<RequestMethod> requestMethods;
 
-    public RequestMappingInfo(String urlPattern, HttpMethod... httpMethods) {
-        this(urlPattern, new LinkedHashSet<>(Arrays.asList(httpMethods)));
+    public RequestMappingInfo(String urlPattern, RequestMethod... requestMethods) {
+        this(urlPattern, new LinkedHashSet<>(Arrays.asList(requestMethods)));
     }
 
-    public RequestMappingInfo(String urlPattern, Set<HttpMethod> httpMethods) {
+    public RequestMappingInfo(String urlPattern, Set<RequestMethod> requestMethods) {
         this.urlPattern = initUrlPattern(urlPattern);
-        this.httpMethods = httpMethods;
+        this.requestMethods = requestMethods;
     }
 
     public static RequestMappingInfo emptyRequestMappingInfo() {
@@ -68,14 +68,14 @@ public class RequestMappingInfo {
         return this.urlPattern + other.urlPattern;
     }
 
-    private Set<HttpMethod> combineHttpMethods(RequestMappingInfo other) {
+    private Set<RequestMethod> combineHttpMethods(RequestMappingInfo other) {
         // 클래스 레벨과 메서드레벨 모두 HttpMethod가 명시되지 않은 경우 모든 메서드 허용
-        if (this.httpMethods.isEmpty() && other.httpMethods.isEmpty()) {
-            return new LinkedHashSet<>(Arrays.asList(HttpMethod.values()));
+        if (this.requestMethods.isEmpty() && other.requestMethods.isEmpty()) {
+            return new LinkedHashSet<>(Arrays.asList(RequestMethod.values()));
         }
 
-        Set<HttpMethod> combined = new LinkedHashSet<>(this.httpMethods);
-        combined.addAll(other.httpMethods);
+        Set<RequestMethod> combined = new LinkedHashSet<>(this.requestMethods);
+        combined.addAll(other.requestMethods);
         return combined;
     }
 
@@ -83,8 +83,8 @@ public class RequestMappingInfo {
         return urlPattern;
     }
 
-    public Set<HttpMethod> getHttpMethods() {
-        return httpMethods;
+    public Set<RequestMethod> getHttpMethods() {
+        return requestMethods;
     }
 
     /**
@@ -100,7 +100,7 @@ public class RequestMappingInfo {
         }
 
         RequestMappingInfo other = (RequestMappingInfo) o;
-        if (Collections.disjoint(this.httpMethods, other.httpMethods)) {
+        if (Collections.disjoint(this.requestMethods, other.requestMethods)) {
             return false;
         }
 
