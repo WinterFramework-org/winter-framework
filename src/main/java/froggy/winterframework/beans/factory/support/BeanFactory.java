@@ -7,8 +7,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -61,22 +63,36 @@ public class BeanFactory extends SingletonBeanRegistry {
     /**
      * 주어진 클래스 타입으로 등록된 Bean 이름들을 반환
      *
-     * @param clazz 대상 클래스
+     * @param requiredType 대상 클래스
      * @return 해당 타입의 Bean 이름 목록
      */
-    public List<String> getBeanNamesForType(Class<?> clazz) {
-        List<String> result = new ArrayList<>();
+    public List<String> getBeanNamesForType(Class<?> requiredType) {
+        List<String> matchedNames = new ArrayList<>();
 
-        for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {
-            String beanName = entry.getKey();
-            BeanDefinition beanDefinition = entry.getValue();
+        Set<String> candidates = new HashSet<>(getBeanDefinitionNames());
+        candidates.addAll(getSingletonNames());
 
-            if (clazz.isAssignableFrom(beanDefinition.getBeanClass())) {
-                result.add(beanName);
+        for (String beanName : candidates) {
+            Class<?> beanType = null;
+
+            // BeanDefinition에 등록된 Bean 조회
+            if (containsBeanDefinition(beanName)) {
+                beanType = getBeanDefinition(beanName).getBeanClass();
+            }
+            // BeanDefinition에 없는 Singleton Bean 조회 (registerSingleton()으로만 등록된 경우)
+            else {
+                Object singleton = getSingleton(beanName);
+                if (singleton != null) {
+                    beanType = singleton.getClass();
+                }
+            }
+
+            if (beanType != null && requiredType.isAssignableFrom(beanType)) {
+                matchedNames.add(beanName);
             }
         }
 
-        return result;
+        return matchedNames;
     }
 
     /**
@@ -141,7 +157,7 @@ public class BeanFactory extends SingletonBeanRegistry {
     /**
      * Bean 이름으로 Bean을 조회/생성.
      * <p>구체적인 조회/생성 로직을 실행, {@link #getBean(String)}에 의해 호출되는 내부 메소드
-     * 
+     *
      * @param beanName 조회할 Bean 이름
      * @return Bean 객체
      * @throws RuntimeException BeanDefinition이 존재하지 않는 경우, Bean 생성 중 예외 발생 시
