@@ -256,9 +256,8 @@ public class BeanFactory extends SingletonBeanRegistry {
 
         int index = 0;
         for (Class<?> clazz: constructor.getParameterTypes()) {
-            String dependencyBeanName = WinterUtils.resolveSimpleBeanName(clazz);
             try {
-                parameters[index++] = getBean(dependencyBeanName);
+                parameters[index++] = resolveDependency(clazz);
             } catch (IllegalStateException e) {
                 throw new IllegalStateException(
                     "Failed to resolve dependency: No qualifying bean of type '"
@@ -268,6 +267,36 @@ public class BeanFactory extends SingletonBeanRegistry {
         }
 
         return parameters;
+    }
+
+    /**
+     * 주어진 Class Type의 Bean을 찾아 의존성으로 주입할 인스턴스를 반환
+     *
+     * <p>지정된 Class Type을 구현, 상속한 Bean 목록을 조회한 후,
+     * 적합한 인스턴스를 찾아 반환.
+     *
+     * @param requiredType 의존성으로 주입할 대상 타입
+     * @param <T>          반환될 Bean의 타입 (제네릭)
+     * @return 주어진 타입을 포함하는 Bean 인스턴스
+     * @throws IllegalStateException Bean이 없거나 두 개 이상인 경우
+     */
+    private <T> T resolveDependency(Class<T> requiredType) {
+        List<String> candidateBeanNames = getBeanNamesForType(requiredType);
+
+        if (candidateBeanNames.isEmpty()) {
+            throw new IllegalStateException(
+                "No bean found of type [" + requiredType.getName() + "]. " +
+                    "Unable to resolve a single candidate for dependency injection. ");
+        }
+
+        if (candidateBeanNames.size() > 1) {
+            throw new IllegalStateException(
+                "Multiple beans found for type [" + requiredType.getName() + "]. " +
+                    "Unable to resolve a single candidate for dependency injection. " +
+                    "Candidates: " + candidateBeanNames);
+        }
+
+        return getBean(candidateBeanNames.get(0), requiredType);
     }
 
     /**
