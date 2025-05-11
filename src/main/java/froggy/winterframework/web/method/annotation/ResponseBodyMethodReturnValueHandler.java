@@ -1,6 +1,8 @@
 package froggy.winterframework.web.method.annotation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import froggy.winterframework.web.bind.annotation.ResponseBody;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
@@ -39,6 +41,9 @@ public class ResponseBodyMethodReturnValueHandler implements HandlerMethodReturn
     public void handleReturnValue(Object returnValue, Class<?> returnType,
         HttpServletRequest request, HttpServletResponse response) {
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
         try {
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
