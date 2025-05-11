@@ -1,5 +1,6 @@
 package froggy.winterframework.beans.factory.support;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -50,6 +51,15 @@ public class SingletonBeanRegistry {
      */
     public Object getSingleton(String beanName) {
         return singletonObjects.get(beanName);
+    }
+
+    /**
+     * 저장된 Singleton BeanName 리스트를 반환
+     *
+     * @return Singleton BeanName 리스트
+     */
+    protected ArrayList<String> getSingletonNames() {
+        return new ArrayList<>(singletonObjects.keySet());
     }
 
 }
