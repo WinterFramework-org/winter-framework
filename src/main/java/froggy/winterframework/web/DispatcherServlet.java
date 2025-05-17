@@ -94,11 +94,49 @@ public class DispatcherServlet extends HttpServlet {
             throw new RuntimeException(e);
         }
 
+        processDispatchResult(request, response, modelAndView);
+    }
+
+    /**
+     * 컨트롤러의 처리 결과(ModelAndView)를 기반으로,
+     * View 렌더링 전 필요한 후처리 및 렌더링을 수행한다.
+     *
+     * @param request       HttpServletRequest 객체
+     * @param response      HttpServletResponse 객체
+     * @param modelAndView  핸들러 실행 결과(Model, View 정보를 포함)
+     */
+    private void processDispatchResult(HttpServletRequest request, HttpServletResponse response, ModelAndView modelAndView)
+        throws ServletException, IOException {
+        if (modelAndView.isRequestHandled()) {
+            return;
+        }
+
+        if (modelAndView.getView() == null || modelAndView.getView().isEmpty()) {
+            throw new IllegalStateException("view must not be null");
+        }
+
         //  ModelAndView 데이터를 request 속성에 추가
         bindProcessResult(request, modelAndView);
 
         // view 렌더링
         render(request, response, modelAndView);
+    }
+
+    /**
+     * 핸들러를 통해 처리된 결과를 View 렌더링 전에 HttpServletRequest에 바인딩한다.
+     *
+     * @param request
+     * @param modelAndView
+     */
+    private void bindProcessResult(HttpServletRequest request, ModelAndView modelAndView) {
+        Map<String, Object> model = modelAndView.getModel();
+        if (model == null || model.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, Object> entry: model.entrySet()) {
+            request.setAttribute(entry.getKey(), entry.getValue());
+        }
     }
 
     /**
@@ -112,33 +150,8 @@ public class DispatcherServlet extends HttpServlet {
      */
     private void render(HttpServletRequest request, HttpServletResponse response,
         ModelAndView modelAndView) throws ServletException, IOException {
-        if (modelAndView.isRequestHandled()) {
-            return;
-        }
-
         RequestDispatcher dispatcher = request.getRequestDispatcher(modelAndView.getView());
         dispatcher.forward(request, response);
-    }
-
-    /**
-     * 핸들러를 통해 처리된 결과를 View 렌더링 전에 HttpServletRequest에 바인딩한다.
-     *
-     * @param request
-     * @param modelAndView
-     */
-    private void bindProcessResult(HttpServletRequest request, ModelAndView modelAndView) {
-        if (modelAndView.getView() == null) {
-            throw new IllegalStateException("view must not be null");
-        }
-
-        Map<String, Object> model = modelAndView.getModel();
-        if (model == null || model.isEmpty()) {
-            return;
-        }
-
-        for (Map.Entry<String, Object> entry: model.entrySet()) {
-            request.setAttribute(entry.getKey(), entry.getValue());
-        }
     }
 
     /**
