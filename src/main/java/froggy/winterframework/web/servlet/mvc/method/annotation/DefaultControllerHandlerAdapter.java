@@ -7,6 +7,7 @@ import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.annotation.ModelAndViewMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.PathVariableMethodArgumentResolver;
+import froggy.winterframework.web.method.annotation.RequestBodyMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.RequestParamMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.ResponseBodyMethodReturnValueHandler;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
@@ -38,6 +39,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
         resolvers.add(new RequestParamMethodArgumentResolver(converter));
         resolvers.add(new PathVariableMethodArgumentResolver(converter));
+        resolvers.add(new RequestBodyMethodArgumentResolver());
     }
 
     private void initReturnValueHandlers() {
