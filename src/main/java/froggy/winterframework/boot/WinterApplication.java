@@ -91,7 +91,7 @@ public class WinterApplication {
     }
 
     private void prepareContext(ApplicationContext context) {
-
+        System.setProperty("basePackage", mainApplicationClass.getPackage().getName());
     }
 
     /**
