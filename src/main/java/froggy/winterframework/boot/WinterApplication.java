@@ -1,5 +1,7 @@
 package froggy.winterframework.boot;
 
+import static froggy.winterframework.utils.WinterUtils.hasAnnotation;
+
 import froggy.winterframework.beans.factory.config.BeanDefinition;
 import froggy.winterframework.beans.factory.config.BeanFactoryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
@@ -10,7 +12,6 @@ import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.DispatcherServlet;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -135,68 +136,54 @@ public class WinterApplication {
      * @param beanFactory BeanFactory 인스턴스
      */
     public void registerBeanDefinition(BeanFactory beanFactory) {
-        Set<String> classNames = getAllFullyQualifiedClassNames();
+        Set<Class<?>> classNames = scanBeanCandidates();
 
-        Set<BeanDefinition> beanDefinitions = findComponents(classNames);
+        Set<BeanDefinition> beanDefinitions = createBeanDefinitions(classNames);
         for (BeanDefinition beanDefinition : beanDefinitions) {
             beanFactory.registerBeanDefinition(beanDefinition.getBeanClass());
         }
     }
 
     /**
-     * 내부/외부의 패키지를 스캔하여
-     * FQCN의 Set을 반환
+     * 애플리케이션과 외부 라이브러리에서
+     * Bean 등록 대상 클래스를 스캔하여 반환한다.
      *
-     * @return 내부와 외부의 클래스 이름을 모두 포함하는 Set
+     * @return 스캔된 Bean 후보 클래스들의 Set
      */
-    private Set<String> getAllFullyQualifiedClassNames() {
-        Set<String> basePackageClassNames = getFullyQualifiedClassNamesByBasePackage();
+    private Set<Class<?>> scanBeanCandidates() {
+        Set<Class<?>> appBeans = WinterUtils.scanTypesAnnotatedWith(
+            Component.class,
+            mainApplicationClass.getPackage().getName()
+        );
 
-        Set<String> externalLibraryClassNames = getFullyQualifiedClassNamesFromExternalLibrary();
-        basePackageClassNames.addAll(externalLibraryClassNames);
+        Set<Class<?>> externalBeans = scanAutoConfigClasses();
+        appBeans.addAll(externalBeans);
 
-        return basePackageClassNames;
+        return appBeans;
     }
 
-
-    /**
-     * 내부 패키지의 모든 클래스를 스캔하여 FQCN의 Set으로 반환.
-     *
-     * @return FQCN의 Set
-     */
-    private Set<String> getFullyQualifiedClassNamesByBasePackage() {
-        URL resource = Thread.currentThread().getContextClassLoader().getResource("");
-
-        File directory = new File(resource.getFile());
-
-        Set<String> fullQualifiedClassNames = new LinkedHashSet<>();
-        if (directory.exists() && directory.isDirectory()) {
-            scanDirectory(directory, "", fullQualifiedClassNames);
-        }
-        return fullQualifiedClassNames;
-    }
 
     /**
      * 외부 패키지의 모든 클래스를 스캔하여 FQCN의 Set으로 반환.
      *
      * @return FQCN의 Set
      */
-    private Set<String> getFullyQualifiedClassNamesFromExternalLibrary() {
-        Set<String> classNames = new HashSet<>();
+    private Set<Class<?>> scanAutoConfigClasses() {
+        Set<Class<?>> autoConfigClasses = new HashSet<>();
         try {
-            Enumeration<URL> autoConfigResources =
-                ClassLoader.getSystemResources("META-INF/winter.autoconfig");
-
-            while(autoConfigResources.hasMoreElements()) {
-                URL url = autoConfigResources.nextElement();
-                classNames.addAll(readClassName(url));
+            Enumeration<URL> configFiles = ClassLoader
+                .getSystemResources("META-INF/winter.autoconfig");
+            while (configFiles.hasMoreElements()) {
+                URL resource = configFiles.nextElement();
+                for (String className : readClassName(resource)) {
+                    autoConfigClasses.add(loadClass(className));
+                }
             }
-
         } catch (IOException e) {
-            throw new RuntimeException("Failed to read META-INF/winter.autoconfig: " + e.getMessage(), e);
+            throw new IllegalStateException(
+                "META-INF/winter.autoconfig 읽기 실패: " + e.getMessage(), e);
         }
-
-        return classNames;
+        return autoConfigClasses;
     }
 
     private Set<String> readClassName(URL url) throws IOException {
@@ -217,43 +204,29 @@ public class WinterApplication {
         return classNames;
     }
 
-    /**
-     * 주어진 디렉토리를 재귀적으로 스캔하여 .class 파일의 완전한 클래스명을 수집.
-     *
-     * @param directory               스캔할 디렉토리
-     * @param packageName             현재 패키지 이름
-     * @param fullQualifiedClassNames 클래스명을 저장할 Set
-     */
-    private void scanDirectory(File directory, String packageName, Set<String> fullQualifiedClassNames) {
-        for (File file : directory.listFiles()) {
-            if (file.isDirectory()) {
-                scanDirectory(file, packageName + file.getName() + ".", fullQualifiedClassNames);
-            }
-
-            if (file.getName().endsWith(".class")) {
-                String className = packageName + file.getName().replace(".class", "");
-                fullQualifiedClassNames.add(className);
-            }
+    private Class<?> loadClass(String className) {
+        try {
+            return Class.forName(className, false,
+                Thread.currentThread().getContextClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(
+                "auto-config 클래스 로드 실패: " + className, e);
         }
     }
 
     /**
-     * @Component 애노테이션이 붙은 클래스를 찾아 {@link BeanDefinition}로 변환하여 Set으로 반환.
+     * Bean 후보 클래스 목록을 순회하면서
+     * 각 클래스의 BeanDefinition을 생성하여 반환한다.
      *
-     * @param classNames 스캔된 클래스 이름 Set
+     * @param candidateClasses Bean 후보 클래스들의 Set
      * @return BeanDefinition Set
      */
-    private Set<BeanDefinition> findComponents(Set<String> classNames) {
+    private Set<BeanDefinition> createBeanDefinitions(Set<Class<?>> candidateClasses) {
         Set<BeanDefinition> beanDefinitions = new LinkedHashSet<>();
 
-        for (String className : classNames) {
-            try {
-                Class<?> clazz = Class.forName(className);
-                if (WinterUtils.hasAnnotation(clazz, Component.class)) {
-                    beanDefinitions.add(new BeanDefinition(clazz));
-                }
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException("Class not found: " + className, e);
+        for (Class<?> clazz : candidateClasses) {
+            if (hasAnnotation(clazz, Component.class)) {
+                beanDefinitions.add(new BeanDefinition(clazz));
             }
         }
 

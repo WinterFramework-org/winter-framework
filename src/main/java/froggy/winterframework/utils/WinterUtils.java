@@ -3,6 +3,13 @@ package froggy.winterframework.utils;
 import froggy.winterframework.stereotype.Controller;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.reflections.Reflections;
+import org.reflections.scanners.SubTypesScanner;
+import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 
 /**
  * 프레임워크에서 공통으로 사용되는 유틸리티 기능을 제공하는 클래스.
@@ -84,6 +91,32 @@ public class WinterUtils {
         }
 
         return false;
+    }
+
+    /**
+     * 지정된 패키지들에서 targetAnnotation이 선언(직접 선언 또는 메타 애노테이션 포함)된
+     * 모든 클래스를 스캔하여 반환한다.
+     *
+     * @param targetAnnotation 스캔 대상 애노테이션 클래스
+     * @param basePackages     스캔할 루트 패키지 이름들 (예: "com.example.app", "org.lib")
+     * @return targetAnnotation이 선언된 클래스들의 Set
+     */
+    public static Set<Class<?>> scanTypesAnnotatedWith(Class<? extends Annotation> targetAnnotation, String... basePackages) {
+        Set<Class<?>> results = new HashSet<>();
+
+        for (String basePackage : basePackages) {
+            Reflections reflections = new Reflections(new ConfigurationBuilder()
+                .setUrls(ClasspathHelper.forPackage(basePackage))
+                .setScanners(new SubTypesScanner(false))
+            );
+
+            results.addAll(reflections.getSubTypesOf(Object.class));
+        }
+
+        return results.stream()
+            .filter(clazz -> hasAnnotation(clazz, targetAnnotation))
+            .filter(clazz -> !clazz.isAnnotation())
+            .collect(Collectors.toSet());
     }
 
 }
