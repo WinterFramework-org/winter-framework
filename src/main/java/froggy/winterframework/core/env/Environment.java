@@ -36,6 +36,7 @@ public class Environment {
         return getProperty(key, String.class);
     }
 
+
     /**
      * 주어진 Key에 대응하는 값을 반환한다.
      *
@@ -45,11 +46,37 @@ public class Environment {
      * @return 변환된 설정값
      */
     public <T> T getProperty(String key, Class<T> targetType) {
-        String raw = lookupProperty(key);
-        if (raw == null) {
+        return getProperty(key, targetType, null);
+    }
+
+    /**
+     * 주어진 Key에 대응하는 값을 반환한다.
+     *
+     * @param key key
+     * @param defaultValue 조회 실패 시 반환할 기본값
+     * @return 설정값
+     */
+    public String getProperty(String key, String defaultValue) {
+        return getProperty(key, String.class, defaultValue);
+    }
+
+    /**
+     * 주어진 Key에 대응하는 값을 반환한다.
+     *
+     * @param key key
+     * @param targetType 반환 타입 클래스
+     * @param defaultValue 조회 실패 시 반환할 기본값
+     * @param <T> 반환 타입
+     * @return 변환된 설정값
+     */
+    public <T> T getProperty(String key, Class<T> targetType, String defaultValue) {
+        String value = lookupProperty(key) != null ? lookupProperty(key) : defaultValue;
+
+        if (value == null) {
             throw new IllegalStateException("No property found for key '" + key + "'");
         }
-        return convert(raw, targetType);
+
+        return convert(value, targetType);
     }
 
     private String lookupProperty(String key) {
