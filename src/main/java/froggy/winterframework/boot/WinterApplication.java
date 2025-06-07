@@ -7,6 +7,8 @@ import froggy.winterframework.beans.factory.config.BeanFactoryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.context.ApplicationContext;
+import froggy.winterframework.core.PropertySource;
+import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.DispatcherServlet;
@@ -17,6 +19,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -50,6 +53,9 @@ public class WinterApplication {
      * @throws Exception 실행 중 발생하는 예외
      */
     private ApplicationContext run() throws Exception {
+        // 애플리케이션 실행에 필요한 환경(Environment) 구성
+        Environment environment = prepareEnvironment();
+
         // 애플리케이션의 빈 관리 및 컨텍스트를 초기화하기 위한 기본 객체
         ApplicationContext context = new ApplicationContext();
 
@@ -57,7 +63,7 @@ public class WinterApplication {
         initContext(context);
 
         // 환경설정, 리스너 등록
-        prepareContext(context);
+        prepareContext(context, environment);
 
         // @Component가 붙은 클래스 스캔, BeanDefinition 등록 및 Singleton Bean 인스턴스 생성
         refreshContext(context);
@@ -66,6 +72,20 @@ public class WinterApplication {
         initServer(context);
 
         return context;
+    }
+
+    /**
+     * 애플리케이션 실행에 필요한 환경(Environment) 구성
+     */
+    private Environment prepareEnvironment() throws IOException {
+        Environment environment = new Environment();
+
+        // basePackage 프로퍼티 설정
+        HashMap<String, String> property = new HashMap<>();
+        property.put("basePackage", mainApplicationClass.getPackage().getName());
+        environment.getPropertySource().mergePropertySource(new PropertySource("system", property));
+
+        return environment;
     }
 
     /**
@@ -90,8 +110,29 @@ public class WinterApplication {
         );
     }
 
-    private void prepareContext(ApplicationContext context) {
-        System.setProperty("basePackage", mainApplicationClass.getPackage().getName());
+    /**
+     * Environment를 Context에 바인드하고 Bean으로 등록
+     */
+    private void prepareContext(ApplicationContext context, Environment environment) {
+        context.addEnvironment(environment);
+
+        registerEnvironmentBean(context, environment);
+    }
+
+    private void registerEnvironmentBean(ApplicationContext context, Environment environment) {
+        BeanFactory beanFactory = context.getBeanFactory();
+
+        String beanName = WinterUtils.resolveSimpleBeanName(Environment.class);
+
+        beanFactory.registerBeanDefinition(
+            beanName,
+            new BeanDefinition(Environment.class)
+        );
+
+        beanFactory.registerSingleton(
+            beanName,
+            environment
+        );
     }
 
     /**
@@ -100,11 +141,17 @@ public class WinterApplication {
      * @param context ApplicationContext
      */
     private void refreshContext(ApplicationContext context) {
+        prepareBeanFactory(context.getBeanFactory(), context.getEnvironment());
+
         registerBeanDefinition(context.getBeanFactory());
 
         postProcessBeanFactory(context.getBeanFactory());
 
         finishBeanFactoryInitialization(context.getBeanFactory());
+    }
+
+    private void prepareBeanFactory(BeanFactory beanFactory, Environment environment) {
+        beanFactory.addEnvironment(environment);
     }
 
     /**

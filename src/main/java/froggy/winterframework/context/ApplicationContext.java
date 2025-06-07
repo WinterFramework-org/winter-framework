@@ -1,6 +1,7 @@
 package froggy.winterframework.context;
 
 import froggy.winterframework.beans.factory.support.BeanFactory;
+import froggy.winterframework.core.env.Environment;
 
 /**
  * ({@link BeanFactory})를 포함하며, Bean을 조회하고 관리하는 역할.
@@ -13,12 +14,24 @@ public class ApplicationContext {
     /** 애플리케이션의 Bean 관리를 담당하는 팩토리 */
     private final BeanFactory beanFactory;
 
+
+    /** 애플리케이션 전체 설정(properties, 환경변수 등)을 제공하는 Environment */
+    private Environment environment;
+
     public ApplicationContext() {
         beanFactory = new BeanFactory();
     }
 
     public BeanFactory getBeanFactory() {
         return beanFactory;
+    }
+
+    public Environment getEnvironment() {
+        return environment;
+    }
+
+    public void addEnvironment(Environment environment) {
+        this.environment = environment;
     }
 
     /**
