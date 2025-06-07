@@ -1,10 +1,13 @@
 package froggy.winterframework.beans.factory.support;
 
 import froggy.winterframework.beans.factory.annotation.Autowired;
+import froggy.winterframework.beans.factory.annotation.Value;
 import froggy.winterframework.beans.factory.config.BeanDefinition;
+import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.utils.WinterUtils;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +27,9 @@ public class BeanFactory extends SingletonBeanRegistry {
 
     /** BeanName을 Key로 하는 BeanDefinition 객체 Map */
     private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(32);
+
+    /** 애플리케이션 전체 설정(properties, 환경변수 등)을 제공하는 Environment */
+    private Environment environment;
 
     /**
      * 지정한 이름의 {@link BeanDefinition}을 반환.
@@ -58,6 +64,15 @@ public class BeanFactory extends SingletonBeanRegistry {
      */
     public List<String> getBeanDefinitionNames() {
         return new ArrayList<>(beanDefinitionMap.keySet());
+    }
+
+    /**
+     * Environment 객체를 받아 내부 필드에 설정함
+     *
+     * @param environment 애플리케이션 전체 설정(properties, 환경변수 등)을 제공
+     */
+    public void addEnvironment(Environment environment) {
+        this.environment = environment;
     }
 
     /**
@@ -242,31 +257,52 @@ public class BeanFactory extends SingletonBeanRegistry {
     }
 
     /**
-     * DI를 위한 생성자 호출 시 필요한 Bean 인스턴스 배열을 반환.
+     * DI 대상의 생성자 호출에 사용할 Argument 배열을 반환한다.
      *
      * <ul>
-     *     <li>생성자의 각 매개변수 타입을 조회하여 해당하는 Bean 객체를 가져옴</li>
-     *     <li>가져온 Bean 객체들을 생성자 호출 시 인자로 전달할 배열로 반환</li>
+     *     <li>각 매개변수 타입에 맞춰 Bean 또는 프로퍼티 값을 조회한다.</li>
+     *     <li>조회한 값을 Argument 배열에 담아 반환한다.</li>
      * </ul>
-     * @param constructor DI가 필요한 생성자
-     * @return 생성자 호출에 사용할 Bean 객체 배열
+     * @param constructor DI 대상의 생성자
+     * @return 생성자 호출에 사용할 Argument 배열
      */
     private Object[] resolveDependencies(Constructor<?> constructor) {
-        Object[] parameters = new Object[constructor.getParameterCount()];
+        Parameter[] params = constructor.getParameters();
+        Object[] args = new Object[constructor.getParameterCount()];
 
-        int index = 0;
-        for (Class<?> clazz: constructor.getParameterTypes()) {
-            try {
-                parameters[index++] = resolveDependency(clazz);
-            } catch (IllegalStateException e) {
-                throw new IllegalStateException(
-                    "Failed to resolve dependency: No qualifying bean of type '"
-                        + clazz.getName() + "' found.", e);
+        for (int i = 0; i < params.length; i++) {
+            Parameter param = params[i];
+            if (param.isAnnotationPresent(Value.class)) {
+                Value anno = param.getAnnotation(Value.class);
+                args[i] = resolveEmbeddedValue(anno.value(), param.getType());
+            } else {
+                args[i] = resolveDependency(param.getType());
             }
-
         }
 
-        return parameters;
+        return args;
+    }
+
+    /**
+     * 주어진 프로퍼티 표현식으로부터 값을 조회해 값을 반환한다.
+     *
+     * @param value 프로퍼티 표현식 (예: "${server.port}")
+     * @return 조회된 값
+     */
+    public String resolveEmbeddedValue(String value) {
+        return resolveEmbeddedValue(value, String.class);
+    }
+
+    /**
+     * 주어진 프로퍼티 표현식으로부터 값을 조회해 값을 반환한다.
+     *
+     * @param <T>          반환 대상의 타입
+     * @param value        프로퍼티 표현식 (예: "${server.port}")
+     * @param requiredType 의존성으로 주입할 대상 타입
+     * @return 조회된 값
+     */
+    public <T> T resolveEmbeddedValue(String value, Class<T> requiredType) {
+        return environment.getProperty(value, requiredType);
     }
 
     /**
