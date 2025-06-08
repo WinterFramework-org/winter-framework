@@ -6,12 +6,13 @@ import froggy.winterframework.beans.factory.config.BeanDefinition;
 import froggy.winterframework.beans.factory.config.BeanFactoryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanFactory;
+import froggy.winterframework.boot.web.embedded.jetty.jettyWebServer;
+import froggy.winterframework.boot.web.server.WebServer;
 import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.core.PropertySource;
 import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.utils.WinterUtils;
-import froggy.winterframework.web.DispatcherServlet;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -23,14 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import org.apache.jasper.servlet.JspServlet;
-import org.eclipse.jetty.server.HttpConfiguration;
-import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.webapp.Configuration;
-import org.eclipse.jetty.webapp.WebAppContext;
 
 /**
  * 프레임워크의 실행을 담당하는 메인 클래스.
@@ -293,43 +286,8 @@ public class WinterApplication {
      * Embedded WAS 실행
      */
     private void initServer(ApplicationContext applicationContext) throws Exception {
-        Server server = new Server();
-
-        // form-urlencoded 요청을 POST, PUT, PATCH, DELETE에서도 파싱 가능하게 설정
-        HttpConfiguration httpConfig = new HttpConfiguration();
-        httpConfig.setFormEncodedMethods("POST", "PUT", "PATCH", "DELETE");
-
-        ServerConnector connector =
-            new ServerConnector(server, new HttpConnectionFactory(httpConfig));
-        connector.setPort(8080);
-        server.addConnector(connector);
-
-        WebAppContext webAppContext = new WebAppContext();
-        webAppContext.setContextPath("/");
-        webAppContext.setResourceBase("src/main/webapp"); // JSP 파일경로
-
-        /*
-        * JSP Configuration
-        * AnnotationConfiguration - 애노테이션 기반의 설정
-        */
-        Configuration.ClassList classList = Configuration.ClassList.setServerDefault(server);
-        classList.addBefore(
-            "org.eclipse.jetty.webapp.JettyWebXmlConfiguration",
-            "org.eclipse.jetty.annotations.AnnotationConfiguration"
-        );
-
-        // jsp요청을 JspServlet에 매핑
-        webAppContext.addServlet(JspServlet.class, "*.jsp");
-        webAppContext.setWelcomeFiles(new String[]{"index.jsp"});
-
-        DispatcherServlet dispatcherServlet = new DispatcherServlet(applicationContext);
-        webAppContext.addServlet(new ServletHolder(dispatcherServlet), "/");
-
-        server.setHandler(webAppContext);
-
-        server.start();
-        System.out.println("WinterFramework Server is running on http://localhost:8080");
-        server.join();
+        WebServer webServer = new jettyWebServer(applicationContext);
+        webServer.start();
     }
 
     /**
