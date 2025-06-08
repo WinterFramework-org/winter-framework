@@ -5,11 +5,15 @@ import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.web.DispatcherServlet;
 import org.apache.jasper.servlet.JspServlet;
+import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.webapp.Configuration;
 import org.eclipse.jetty.webapp.WebAppContext;
 
@@ -19,6 +23,10 @@ public class jettyWebServer implements WebServer {
     private Server server;
 
     private int serverPort;
+    private boolean sslEnabled;
+    private String keyStorePath;
+    private String keyStoreType;
+    private String keyStorePassword;
 
     public jettyWebServer(ApplicationContext context) {
         this.context = context;
@@ -27,6 +35,12 @@ public class jettyWebServer implements WebServer {
     public void init(ApplicationContext context) {
         Environment environment = context.getEnvironment();
         this.serverPort         = environment.getProperty("server.port", Integer.class, 8080);
+        this.sslEnabled         = environment.getProperty("server.ssl.enabled", Boolean.class, false);
+        if (sslEnabled) {
+            this.keyStorePath       = environment.getProperty("server.ssl.key-store", String.class);
+            this.keyStoreType       = environment.getProperty("server.ssl.key-store-type", String.class);
+            this.keyStorePassword   = environment.getProperty("server.ssl.key-store-password", String.class);
+        }
     }
 
     @Override
@@ -77,20 +91,55 @@ public class jettyWebServer implements WebServer {
         HttpConfiguration httpConfig = new HttpConfiguration();
         httpConfig.setFormEncodedMethods("POST", "PUT", "PATCH", "DELETE");
 
-        ServerConnector connector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
-        connector.setPort(serverPort);
-        return connector;
+        if(sslEnabled) {
+            return createSslConnector(server);
+        } else {
+            ServerConnector connector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
+            connector.setPort(serverPort);
+            return connector;
+        }
+
     }
 
+    private ServerConnector createSslConnector(Server server) {
+        // 1. SslContextFactory 설정
+        SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+        sslContextFactory.setKeyStorePath(keyStorePath);
+        sslContextFactory.setKeyStorePassword(keyStorePassword);
+        sslContextFactory.setKeyStoreType(keyStoreType);
+
+        // 2. HTTPS HttpConfiguration
+        HttpConfiguration httpsConfig = new HttpConfiguration();
+        httpsConfig.setSecureScheme("https");
+        httpsConfig.setSecurePort(serverPort);
+        httpsConfig.addCustomizer(new SecureRequestCustomizer());
+
+        // 3. 연결 팩토리 구성 (SSL → HTTP/1.1)
+        SslConnectionFactory sslConnectionFactory =
+            new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.toString());
+        HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpsConfig);
+
+        // 4. ServerConnector 생성
+        ServerConnector sslConnector = new ServerConnector(
+            server, sslConnectionFactory, httpConnectionFactory
+        );
+        sslConnector.setPort(serverPort);
+        sslConnector.setIdleTimeout(30000);
+
+        return sslConnector;
+    }
 
     @Override
     public void stop() {
         try {
+            // 1. 그레이스풀 셧다운: 최대 5초 동안 열린 요청을 처리하고 커넥션을 정리
             server.setStopAtShutdown(true);
             server.setStopTimeout(5_000);
 
+            // 2. 서버 정지 요청
             server.stop();
 
+            // 3. 실제 스레드 종료를 대기
             server.join();
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to stop Web Server.", ex);
