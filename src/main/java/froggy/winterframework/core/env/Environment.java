@@ -69,14 +69,18 @@ public class Environment {
      * @param <T> 반환 타입
      * @return 변환된 설정값
      */
-    public <T> T getProperty(String key, Class<T> targetType, String defaultValue) {
-        String value = lookupProperty(key) != null ? lookupProperty(key) : defaultValue;
-
-        if (value == null) {
-            throw new IllegalStateException("No property found for key '" + key + "'");
+    public <T> T getProperty(String key, Class<T> targetType, T defaultValue) {
+        String raw = lookupProperty(key);
+        if (raw == null) {
+            if (defaultValue == null) {
+                throw new IllegalStateException(
+                    "No property found for key '" + key + "' and no default value provided"
+                );
+            }
+            return defaultValue;
         }
-
-        return convert(value, targetType);
+        // 있으면 문자열을 targetType으로 변환
+        return convert(raw, targetType);
     }
 
     private String lookupProperty(String key) {
@@ -105,7 +109,9 @@ public class Environment {
         if (type == Boolean.class || type == boolean.class) {
             return (T) Boolean.valueOf(raw);
         }
-        throw new IllegalArgumentException("Unsupported type: " + type.getSimpleName());
+        throw new IllegalArgumentException(
+            "Invalid conversion: raw value '" + raw + "' cannot be cast to " + type.getSimpleName()
+        );
     }
 
     /**
