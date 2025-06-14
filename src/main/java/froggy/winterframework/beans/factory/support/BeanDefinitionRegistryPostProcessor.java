@@ -3,16 +3,20 @@ package froggy.winterframework.beans.factory.support;
 import froggy.winterframework.beans.factory.config.BeanFactoryPostProcessor;
 
 /**
- * Bean 생명주기 초기 단계에서 BeanDefinition을 수정할 수 있는 확장 포인트
+ * 빈 정의(BeanDefinition)를 등록·변경할 수 있는 역할의 PostProcessor
  *
- * 모든 BeanDefinition이 로드된 후, Bean 인스턴스가 생성되기 전에 실행됨
- *
- * 새로운 BeanDefinition의 등록, 기존 BeanDefinition의 메타데이터 정보를 수정
+ * 모든 BeanDefinition이 로드된 후 {@link #postProcessBeanFactory} 보다 먼저 실행됨
  */
 public interface BeanDefinitionRegistryPostProcessor extends BeanFactoryPostProcessor {
 
+    /**
+     * BeanDefinition 목록이 확정되기 전, BeanDefinition 추가·수정·삭제할 역할을 수행
+     *
+     * @param beanFactory BeanFactory
+     */
     void postProcessBeanDefinitionRegistry(BeanFactory beanFactory);
 
+    @Override
     default void postProcessBeanFactory(BeanFactory beanFactory) {
     }
 }
