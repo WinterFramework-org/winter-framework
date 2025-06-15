@@ -14,26 +14,36 @@ public class BeanDefinition {
     /** Bean의 스코프를 나타내는 문자열 (e.g: "singleton") */
     private String scope;
 
-    /**
-     * 지정된 클래스 타입과 스코프를 사용하여 새로운 {@code BeanDefinition} 객체를 생성.
-     *
-     * @param beanClass Bean으로 생성할 클래스의 {@link Class} 객체
-     * @param scope     Bean의 스코프 (e.g: "singleton")
-     */
-    public BeanDefinition(Class<?> beanClass, String scope) {
-        this.beanClass = beanClass;
-        this.scope = scope;
-    }
+    /** 인스턴스 생성을 담당할 Factory Bean(설정 클래스 인스턴스)의 이름 */
+    private String factoryBeanName;
+
+    /** 호출할 FactoryMethod의 이름. */
+    private String factoryMethodName;
 
 
-    /**
-     * 지정된 클래스 타입을 사용하여 새로운 {@code BeanDefinition} 객체를 생성,
-     * 기본 스코프로는 "singleton" 사용.
-     *
-     * @param beanClass 빈으로 생성할 클래스의 {@link Class} 객체
-     */
     public BeanDefinition(Class<?> beanClass) {
         this(beanClass, "singleton");
+    }
+
+    public BeanDefinition(Class<?> beanClass, String scope) {
+        this(beanClass, scope, null, null);
+    }
+
+    public BeanDefinition(Class<?> beanClass, String factoryBeanName, String factoryMethodName) {
+        this(beanClass,"singleton", factoryBeanName, factoryMethodName);
+    }
+
+    /**
+     * @param beanClass         Bean으로 생성할 클래스의 {@link Class} 객체
+     * @param scope             Bean의 스코프
+     * @param factoryBeanName   인스턴스 생성에 사용할 Factory Bean의 이름
+     * @param factoryMethodName 호출할 FactoryMethod 이름
+     */
+    public BeanDefinition(Class<?> beanClass, String scope, String factoryBeanName, String factoryMethodName) {
+        this.beanClass = beanClass;
+        this.scope = scope;
+        this.factoryBeanName = factoryBeanName;
+        this.factoryMethodName = factoryMethodName;
     }
 
     /**
@@ -54,4 +64,17 @@ public class BeanDefinition {
         return scope;
     }
 
+    /**
+     * @return 인스턴스 생성을 담당할 Factory Bean(설정 클래스 인스턴스)의 이름
+     */
+    public String getFactoryBeanName() {
+        return factoryBeanName;
+    }
+
+    /**
+     * @return 호출할 FactoryMethod의 이름
+     */
+    public String getFactoryMethodName() {
+        return factoryMethodName;
+    }
 }

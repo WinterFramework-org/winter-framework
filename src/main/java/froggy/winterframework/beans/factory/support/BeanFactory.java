@@ -7,6 +7,7 @@ import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.utils.WinterUtils;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -211,19 +212,69 @@ public class BeanFactory extends SingletonBeanRegistry {
      * @throws RuntimeException Bean 생성 중 발생한 예외
      */
     private Object doCreateBean(String beanName, BeanDefinition beanDefinition) throws RuntimeException {
-        Class<?> beanClass = beanDefinition.getBeanClass();
+        Object beanInstance = createBeanInstance(beanName, beanDefinition);
 
-        // @Autowired 선언된 생성자 찾기
+        registerSingleton(beanName, beanInstance);
+
+        return beanInstance;
+    }
+
+    /**
+     * BeanDefinition 체크하여 FactoryMethod 또는 생성자를 통해 인스턴스를 생성.
+     *
+     * @param beanName       생성할 Bean 이름
+     * @param beanDefinition BeanDefinition 정보
+     * @return 생성된 Bean 객체
+     */
+    private Object createBeanInstance(String beanName, BeanDefinition beanDefinition) {
+        if (beanDefinition.getFactoryMethodName() != null) {
+            return instantiateUsingFactoryMethod(beanName, beanDefinition);
+        }
+
+        return autowireConstructor(beanName, beanDefinition);
+    }
+
+    /**
+     * FactoryMethod를 통해 Bean으로 등록할 인스턴스를 생성.
+     *
+     * @param beanName       생성할 Bean 이름
+     * @param beanDefinition Bean 정의 정보
+     * @return 생성된 Bean 객체
+     */
+    private Object instantiateUsingFactoryMethod(String beanName, BeanDefinition beanDefinition) {
+        String factoryBeanName = beanDefinition.getFactoryBeanName();
+        Object factoryBean = getBean(factoryBeanName);
+
+        String methodName = beanDefinition.getFactoryMethodName();
+        try {
+            Method factoryMethod = factoryBean.getClass().getMethod(methodName);
+
+            return factoryMethod.invoke(factoryBean);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("Factory method not found: " + methodName + " for bean '" + beanName + "'", e);
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException("Failed to invoke factory method: " + methodName + " on bean '" + beanName + "'", e);
+        }
+    }
+
+    /**
+     * 생성자에 @Autowired가 있으면 의존성을 주입하고, 없으면 기본 생성자로 인스턴스 생성.
+     *
+     * @param beanName       생성할 Bean 이름
+     * @param beanDefinition Bean 정의 정보
+     * @return 생성된 Bean 객체
+     */
+    private Object autowireConstructor(String beanName, BeanDefinition beanDefinition) {
+        Class<?> beanClass = beanDefinition.getBeanClass();
         Constructor<?> autowiredConstructor = findAutowiredConstructor(beanClass);
-        Object beanInstance = null;
         try {
             // @Autowired가 붙은 생성자가 있으면 의존성을 주입하여 인스턴스 생성
             if (autowiredConstructor != null) {
                 Object[] parameters = resolveDependencies(autowiredConstructor);
-                beanInstance = autowiredConstructor.newInstance(parameters);
+                return autowiredConstructor.newInstance(parameters);
             } else {
                 // 기본 생성자로 인스턴스 생성
-                beanInstance = beanClass.getDeclaredConstructor().newInstance();
+                return beanClass.getDeclaredConstructor().newInstance();
             }
         } catch (InstantiationException e) {
             throw new RuntimeException("Failed to instantiate bean: " + beanName + " (class: " + beanClass.getName() + ")", e);
@@ -234,10 +285,6 @@ public class BeanFactory extends SingletonBeanRegistry {
         } catch (NoSuchMethodException e) {
             throw new RuntimeException("No default constructor found for bean: " + beanName + " (class: " + beanClass.getName() + ")", e);
         }
-
-        registerSingleton(beanName, beanInstance);
-
-        return beanInstance;
     }
 
     /**

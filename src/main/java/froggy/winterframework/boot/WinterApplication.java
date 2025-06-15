@@ -9,6 +9,7 @@ import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.boot.web.embedded.jetty.jettyWebServer;
 import froggy.winterframework.boot.web.server.WebServer;
 import froggy.winterframework.context.ApplicationContext;
+import froggy.winterframework.context.annotation.ConfigurationClassPostProcessor;
 import froggy.winterframework.core.PropertySource;
 import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.stereotype.Component;
@@ -19,10 +20,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -104,12 +107,14 @@ public class WinterApplication {
     }
 
     /**
-     * Environment를 Context에 바인드하고 Bean으로 등록
+     * 1) Environment를 바인드 및 빈으로 등록하고,
+     * 2) 초기화 단계에서 사용할 BeanFactoryPostProcessor를 추가.
      */
     private void prepareContext(ApplicationContext context, Environment environment) {
         context.addEnvironment(environment);
 
         registerEnvironmentBean(context, environment);
+        applyBeanFactoryPostProcessor(context);
     }
 
     private void registerEnvironmentBean(ApplicationContext context, Environment environment) {
@@ -129,7 +134,17 @@ public class WinterApplication {
     }
 
     /**
-     * Bean 스캔 및 등록을 수행하고, Singleton Bean 인스턴스를 생성.
+     * 컨텍스트 초기화 과정에서 내부적으로 사용될 BeanFactoryPostProcessor를 등록.
+     *
+     * @param context
+     */
+    private void applyBeanFactoryPostProcessor(ApplicationContext context) {
+        context.addBeanFactoryPostProcessor(new ConfigurationClassPostProcessor());
+    }
+
+    /**
+     * Bean 정의를 스캔·등록하고, BeanFactoryPostProcessor 및 BeanPostProcessor를 실행한 뒤,
+     * 최종적으로 모든 싱글톤 Bean을 생성하여 초기화 진행
      *
      * @param context ApplicationContext
      */
@@ -138,7 +153,7 @@ public class WinterApplication {
 
         registerBeanDefinition(context.getBeanFactory());
 
-        postProcessBeanFactory(context.getBeanFactory());
+        postProcessBeanFactory(context.getBeanFactory(), context.getBeanFactoryPostProcessors());
 
         finishBeanFactoryInitialization(context.getBeanFactory());
     }
@@ -152,20 +167,22 @@ public class WinterApplication {
      *
      * @param factory 후처리 작업이 수행될 BeanFactory 인스턴스
      */
-    private void postProcessBeanFactory(BeanFactory factory) {
-        // 'BeanDefinitionRegistryPostProcessor' 후처리 작업 실행
-        for (String ppName : factory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class)) {
-            BeanDefinitionRegistryPostProcessor pp =
-                factory.getBean(ppName, BeanDefinitionRegistryPostProcessor.class);
-
-            pp.postProcessBeanDefinitionRegistry(factory);
+    private void postProcessBeanFactory(BeanFactory factory, List<BeanFactoryPostProcessor> postProcessors) {
+        List<BeanFactoryPostProcessor> allProcessors = new ArrayList<>(postProcessors);
+        for (String ppName : factory.getBeanNamesForType(BeanFactoryPostProcessor.class)) {
+            allProcessors.add(factory.getBean(ppName, BeanFactoryPostProcessor.class));
         }
 
-        // 'BeanFactoryPostProcessor' 후처리 작업 실행
-        for (String ppName : factory.getBeanNamesForType(BeanFactoryPostProcessor.class)) {
-            BeanFactoryPostProcessor pp =
-                factory.getBean(ppName, BeanFactoryPostProcessor.class);
+        // 1. BeanFactoryPostProcessor#postProcessBeanDefinitionRegistry() 실행
+        for (BeanFactoryPostProcessor pp : allProcessors) {
+            if (pp instanceof BeanDefinitionRegistryPostProcessor) {
+                BeanDefinitionRegistryPostProcessor bdpp = (BeanDefinitionRegistryPostProcessor) pp;
+                bdpp.postProcessBeanDefinitionRegistry(factory);
+            }
+        }
 
+        // 2. BeanFactoryPostProcessor#postProcessBeanFactory 실행
+        for (BeanFactoryPostProcessor pp : allProcessors) {
             pp.postProcessBeanFactory(factory);
         }
     }
