@@ -1,9 +1,18 @@
 package froggy.winterframework.boot.web.embedded.jetty;
 
+import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.boot.web.server.WebServer;
+import froggy.winterframework.boot.web.servlet.FilterRegistrationBean;
 import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.web.DispatcherServlet;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.List;
+import javax.servlet.DispatcherType;
+import javax.servlet.Filter;
 import org.apache.jasper.servlet.JspServlet;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -12,6 +21,7 @@ import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.webapp.Configuration;
@@ -52,6 +62,9 @@ public class jettyWebServer implements WebServer {
 
         WebAppContext webAppContext = createWebAppContext();
 
+        // Cors 필터 등록
+        addFilter(webAppContext);
+
         // jsp요청을 JspServlet에 매핑
         configureServlets(webAppContext);
 
@@ -67,6 +80,35 @@ public class jettyWebServer implements WebServer {
         webAppContext.addServlet(JspServlet.class, "*.jsp");
         webAppContext.setWelcomeFiles(new String[]{"index.jsp"});
         webAppContext.addServlet(new ServletHolder(new DispatcherServlet(context)), "/");
+    }
+
+    private void addFilter(WebAppContext webAppContext) {
+        BeanFactory beanFactory = context.getBeanFactory();
+
+        List<String> filterRegNames = beanFactory.getBeanNamesForType(FilterRegistrationBean.class);
+
+        List<FilterRegistrationBean<Filter>> filterBeans = new ArrayList<>();
+        for (String filterRegName : filterRegNames) {
+            FilterRegistrationBean<Filter> bean = beanFactory.getBean(filterRegName, FilterRegistrationBean.class);
+            filterBeans.add(bean);
+        }
+
+        Collections.sort(filterBeans, new Comparator<FilterRegistrationBean<Filter>>() {
+            @Override
+            public int compare(FilterRegistrationBean<Filter> a, FilterRegistrationBean<Filter> b) {
+                return Integer.compare(a.getOrder(), b.getOrder());
+            }
+        });
+
+        for (FilterRegistrationBean<Filter> bean : filterBeans) {
+            Filter filter = bean.getFilter();
+            FilterHolder filterHolder = new FilterHolder(filter);
+            EnumSet<DispatcherType> dispatcherTypes = bean.getDispatcherTypes();
+
+            for (String urlPattern : bean.getUrlPatterns()) {
+                webAppContext.addFilter(filterHolder, urlPattern, dispatcherTypes);
+            }
+        }
     }
 
     private WebAppContext createWebAppContext() {
