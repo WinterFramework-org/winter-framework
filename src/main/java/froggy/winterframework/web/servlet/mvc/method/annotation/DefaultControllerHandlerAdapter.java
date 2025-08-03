@@ -113,13 +113,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         Object[] args = new Object[parameters.length];
 
         for (int i = 0; i < parameters.length; i++) {
-            Object resolvedArgument = resolveArgumentForParameter(parameters[i], request);
-
-            if (resolvedArgument == null) {
-                throw new IllegalStateException("Can't resolve parameter: "
-                    + parameters[i].getName() + " (" + parameters[i].getType().getSimpleName() + ")");
-            }
-            args[i] = resolvedArgument;
+            args[i] = resolveArgumentForParameter(parameters[i], request);
         }
 
         return args;

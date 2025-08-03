@@ -41,4 +41,14 @@ public class RequestHeaderMethodArgumentResolver extends AbstractMethodArgumentR
 
         return request.getHeader(name);
     }
+
+    /**
+     * {@link RequestHeader} 어노테이션 정보를 기반으로 {@link NamedValueInfo}를 생성.
+     */
+    @Override
+    protected NamedValueInfo createNamedValueInfo(Parameter parameter) {
+        RequestHeader ann = parameter.getAnnotation(RequestHeader.class);
+
+        return new NamedValueInfo(ann.value(), ann.required(), ann.defaultValue());
+    }
 }

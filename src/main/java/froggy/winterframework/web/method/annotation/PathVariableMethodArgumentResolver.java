@@ -2,6 +2,7 @@ package froggy.winterframework.web.method.annotation;
 
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.PathVariable;
+import froggy.winterframework.web.bind.annotation.ValueConstants;
 import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import javax.servlet.http.HttpServletRequest;
@@ -42,5 +43,15 @@ public class PathVariableMethodArgumentResolver extends AbstractMethodArgumentRe
         HashMap<String, String> map = (HashMap<String, String>) request.getAttribute("uriTemplateVariables");
 
         return map.get(paramName);
+    }
+
+    /**
+     * {@link PathVariable} 어노테이션 정보를 기반으로 {@link NamedValueInfo}를 생성.
+     */
+    @Override
+    protected NamedValueInfo createNamedValueInfo(Parameter parameter) {
+        PathVariable ann = parameter.getAnnotation(PathVariable.class);
+
+        return new NamedValueInfo(ann.value(), RequiredConstants.MANDATORY, ValueConstants.DEFAULT_NONE);
     }
 }

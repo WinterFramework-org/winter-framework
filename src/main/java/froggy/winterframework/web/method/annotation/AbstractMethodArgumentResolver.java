@@ -1,6 +1,7 @@
 package froggy.winterframework.web.method.annotation;
 
 import froggy.winterframework.utils.convert.TypeConverter;
+import froggy.winterframework.web.bind.annotation.ValueConstants;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import java.lang.reflect.Parameter;
 import javax.servlet.http.HttpServletRequest;
@@ -27,18 +28,39 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      * @param parameter 변환할 매개변수 객체
      * @param request   HTTP 요청 객체
      * @return 변환된 매개변수 값
-     * @throws Exception 변환 과정에서 발생하는 예외
+     * @throws IllegalStateException 변환 과정에서 발생하는 예외
      */
     @Override
-    public Object resolveArgument(Parameter parameter, HttpServletRequest request) throws Exception {
-        String value = extractValue(parameter, request);
+    public Object resolveArgument(Parameter parameter, HttpServletRequest request) throws IllegalStateException {
+        NamedValueInfo namedValueInfo = createNamedValueInfo(parameter);
+
+        String extractValue = extractValue(parameter, request);
         Class<?> targetType = parameter.getType();
 
-        try {
-            return converter.convert(targetType, value);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("Failed to convert request parameter '" + parameter.getName() + "' with value '" + value + "' to type '" + targetType.getSimpleName() + "'.", e);
+        String resolvedValue = getValueOrDefault(extractValue, namedValueInfo);
+        if (resolvedValue == null) {
+            return null;
         }
+
+        try {
+            return converter.convert(targetType, resolvedValue);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("Failed to convert request parameter '" + namedValueInfo.name + "' with value '" + resolvedValue + "' to type '" + targetType.getSimpleName() + "'.", e);
+        }
+    }
+
+    private String getValueOrDefault(String extractValue, NamedValueInfo namedValueInfo) {
+        if (extractValue != null) {
+            return extractValue;
+        }
+        if (namedValueInfo.defaultValue != null && !ValueConstants.DEFAULT_NONE.equals(namedValueInfo.defaultValue)) {
+            return namedValueInfo.defaultValue;
+        }
+        if (namedValueInfo.required) {
+            throw new IllegalStateException("Required parameter '" + namedValueInfo.name + "' is missing");
+        }
+        // required=false && defaultValue==null && extractValue==null
+        return null;
     }
 
     /**
@@ -50,4 +72,32 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      * @return 요청에서 추출한 문자열 값 (없을 경우 {@code null} 반환)
      */
     protected abstract String extractValue(Parameter parameter, HttpServletRequest request);
+
+    /**
+     * 주어진 매개변수에서 이름, 필수 여부, 기본값 정보를 담은 {@link NamedValueInfo} 객체를 생성한다.
+     *
+     * @param parameter 정보를 추출할 매개변수
+     * @return {@link NamedValueInfo} 객체
+     */
+    protected abstract NamedValueInfo createNamedValueInfo(Parameter parameter);
+
+    /**
+     * 매개변수의 이름, 필수 여부, 기본값 정보를 담는 클래스.
+     */
+    protected static class NamedValueInfo {
+        private final String name;
+        private final boolean required;
+        private final String defaultValue;
+
+        /**
+         * @param name         매개변수 이름
+         * @param required     필수 여부
+         * @param defaultValue 기본값
+         */
+        public NamedValueInfo(String name, boolean required, String defaultValue) {
+            this.name = name;
+            this.required = required;
+            this.defaultValue = defaultValue;
+        }
+    }
 }

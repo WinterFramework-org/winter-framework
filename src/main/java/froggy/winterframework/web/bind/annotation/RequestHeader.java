@@ -6,17 +6,25 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 해당 파라매터가 Web Request Header와 바인딩되어야 함을 표시
- *
- * <p>해당 애노테이션이 적용된 매개변수는 Request Header에서 값을 추출하여 자동으로 매핑됨.</p>
+ * HTTP 요청 헤더의 값을 메소드 파라미터에 바인딩하는 어노테이션.
  */
 @Target({ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RequestHeader {
     /**
-     * 요청에서 매핑할 헤더 이름.
-     *
-     * @return 바인딩할 요청 헤더 이름
+     * 바인딩할 요청 헤더의 이름.
      */
     String value();
+
+    /**
+     * 파라미터가 필수인지 여부.
+     * <p>기본값은 {@code true}이며, {@code true}일 경우 헤더 값이 없으면 예외가 발생.
+     */
+    boolean required() default true;
+
+    /**
+     * 파라미터의 기본값.
+     * <p>헤더 값이 없거나 비어있을 때 사용될 기본값을 지정.
+     */
+    String defaultValue() default ValueConstants.DEFAULT_NONE;
 }
