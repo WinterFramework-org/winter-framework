@@ -49,6 +49,20 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
         }
     }
 
+
+    /**
+     * namedValueInfo 따라 값 반환 또는 예외 처리
+     * <ol>
+     *   <li>extractValue가 있으면 그대로 반환</li>
+     *   <li>값이 없고 defaultValue가 있으면 defaultValue 반환</li>
+     *   <li>required이면서 값이 없으면 IllegalStateException 발생</li>
+     * </ol>
+     *
+     * @param extractValue   HTTP 요청에서 추출된 원본 값
+     * @param namedValueInfo 요청 파라미터 어노테이션 정보(defaultValue, required)
+     * @return extractValue 또는 defaultValue, required=false면 null 반환 가능
+     * @throws IllegalStateException required=true인데 값이 없을 경우
+     */
     private String getValueOrDefault(String extractValue, NamedValueInfo namedValueInfo) {
         if (extractValue != null) {
             return extractValue;
