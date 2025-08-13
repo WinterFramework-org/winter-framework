@@ -9,7 +9,7 @@ import javax.servlet.Filter;
 
 public class FilterRegistrationBean<T extends Filter> {
     private T filter;
-    private Set<String> urlPatterns = new LinkedHashSet();
+    private Set<String> urlPatterns = new LinkedHashSet<>();
     private EnumSet<DispatcherType> dispatcherTypes;
     private int order = Integer.MAX_VALUE;
 
