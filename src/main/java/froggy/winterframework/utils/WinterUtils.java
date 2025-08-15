@@ -94,19 +94,20 @@ public class WinterUtils {
     }
 
     /**
-     * 지정된 패키지들에서 targetAnnotation이 선언(직접 선언 또는 메타 애노테이션 포함)된
-     * 모든 클래스를 스캔하여 반환한다.
+     * 지정한 패키지들(candidatePackages)에서
+     * targetAnnotation이 선언(직접 또는 메타 애노테이션)된 클래스를 스캔해,
+     * 매칭된 클래스들의 Class<?> 객체(Set)를 반환한다.
      *
-     * @param targetAnnotation 스캔 대상 애노테이션 클래스
-     * @param basePackages     스캔할 루트 패키지 이름들 (예: "com.example.app", "org.lib")
-     * @return targetAnnotation이 선언된 클래스들의 Set
+     * @param targetAnnotation  스캔 대상 애노테이션 클래스
+     * @param candidatePackages 스캔할 루트 패키지 이름들 (예: "com.example.app", "org.lib")
+     * @return 매칭된 클래스들의 {@code Set<Class<?>>}
      */
-    public static Set<Class<?>> scanTypesAnnotatedWith(Class<? extends Annotation> targetAnnotation, String... basePackages) {
+    public static Set<Class<?>> scanTypesAnnotatedWith(Class<? extends Annotation> targetAnnotation, String... candidatePackages) {
         Set<Class<?>> results = new HashSet<>();
 
-        for (String basePackage : basePackages) {
+        for (String candidatePackage : candidatePackages) {
             Reflections reflections = new Reflections(new ConfigurationBuilder()
-                .setUrls(ClasspathHelper.forPackage(basePackage))
+                .setUrls(ClasspathHelper.forPackage(candidatePackage))
                 .setScanners(new SubTypesScanner(false))
             );
 
