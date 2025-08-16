@@ -9,7 +9,13 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -191,6 +197,29 @@ public class BeanFactory extends SingletonBeanRegistry {
     }
 
     /**
+     * 조회 대상 타입의 모든 Bean을 조회해 리스트로 반환
+     * <p>조회된 Bean이 없으면 비어 있는 리스트를 반환한다(예외 발생 없음).</p>
+     *
+     * @param <T> 조회 대상 Bean의 타입 매개변수
+     * @param requiredType 조회할 Bean의 구체 타입
+     * @return 조회된 Bean 목록
+     */
+    public <T> List<T> getBeansOfType(Class<T> requiredType) {
+        List<String> candidateBeanNames = getBeanNamesForType(requiredType);
+
+        if (candidateBeanNames.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<T> matchedBeans = new ArrayList<>();
+        for (String candidateBeanName : candidateBeanNames) {
+            matchedBeans.add(getBean(candidateBeanName, requiredType));
+        }
+
+        return matchedBeans;
+    }
+
+    /**
      * {@link BeanDefinition}을 기반으로 Bean을 생성.
      *
      * @param beanName       생성할 Bean 이름
@@ -323,7 +352,7 @@ public class BeanFactory extends SingletonBeanRegistry {
                 Value anno = param.getAnnotation(Value.class);
                 args[i] = resolveEmbeddedValue(anno.value(), param.getType());
             } else {
-                args[i] = resolveDependency(param.getType());
+                args[i] = resolveDependency(param);
             }
         }
 
@@ -350,6 +379,37 @@ public class BeanFactory extends SingletonBeanRegistry {
      */
     public <T> T resolveEmbeddedValue(String value, Class<T> requiredType) {
         return environment.getProperty(value, requiredType);
+    }
+
+    /**
+     * 주어진 Parameter에 해당하는 Bean을 찾아 의존성으로 주입할 인스턴스를 반환
+     *
+     * <br>
+     * — <p>{@code List<T>}이면 T 타입의 모든 Bean 목록을 반환하고,</p>
+     * 그 외에는 단일 Bean 조회는 {@link #resolveDependency(Class)} 에서 처리
+
+     * @param parameter         의존성 대상의 파라매터
+     * @return {@code List<T>}  또는 단일 Bean 인스턴스
+     * @throws UnsupportedOperationException {@code List}가 아닌 {@code Collection}이거나,
+     *                                      {@code List} 구현타입(ArrayList/LinkedList 등)으로 선언된 경우
+     * @throws IllegalStateException 제네릭 타입을 판단할 수 없거나 단일 Bean 조회에 실패한 경우
+     * @see #resolveDependency(Class)
+     */
+    private Object resolveDependency(Parameter parameter) {
+        Class<?> rawType = parameter.getType();
+
+        if (rawType == List.class) {
+            Class<?> elementType = resolveCollectionElementType(parameter);
+            return getBeansOfType(elementType);
+        }
+
+        if (Collection.class.isAssignableFrom(rawType)) {
+            throw new UnsupportedOperationException(
+                "Dependency Injection only supports parameters declared as List<T>. " +
+                    "Change the parameter type to List<T>, not " + rawType.getName());
+        }
+
+        return resolveDependency(rawType);
     }
 
     /**
@@ -380,6 +440,52 @@ public class BeanFactory extends SingletonBeanRegistry {
         }
 
         return getBean(candidateBeanNames.get(0), requiredType);
+    }
+    
+    /**
+     * {@code Collection} 파라미터(예: {@code List<T>})의 제네릭 요소 타입 {@code T} 추출
+     * 지원: {@code List<Foo>}, {@code List<? extends Foo>}, {@code List<T}(선언부에서 {@code T extends Foo}로 제한된 경우).
+     * 미지원: {@code ? super Foo}, 다중 상한, 중첩 제네릭(예: {@code List<List<Foo>>}).
+     *
+     * @param parameter 대상 파라미터
+     * @return 컬렉션의 제네릭 요소 타입 {@code T}에 해당하는 {@link Class} 객체
+     * @throws IllegalStateException 요소 타입을 확인할 수 없는 경우
+     */
+    private Class<?> resolveCollectionElementType(Parameter parameter) {
+        Type declared = parameter.getParameterizedType();
+        if (!(declared instanceof ParameterizedType)) {
+            throw new IllegalStateException("Missing generic type for Collection<T>: " + declared);
+        }
+
+        Type arg = ((ParameterizedType) declared).getActualTypeArguments()[0];
+
+        // 구체적인 클래스 타입인 경우 (예: List<Foo>)
+        if (arg instanceof Class<?>) {
+            return (Class<?>) arg;
+        }
+
+        // 와일드카드 타입인 경우 (예: List<? extends Foo>)
+        if (arg instanceof WildcardType) {
+            Type[] upper = ((WildcardType) arg).getUpperBounds();
+            if (upper.length == 1 && upper[0] instanceof Class<?>) {
+                return (Class<?>) upper[0];
+            }
+        }
+
+        // 타입 변수인 경우 (예: List<T extends Foo>)
+        if (arg instanceof TypeVariable<?>) {
+            Type[] bounds = ((TypeVariable<?>) arg).getBounds();
+            if (bounds.length == 1 && bounds[0] instanceof Class<?>) {
+                return (Class<?>) bounds[0];
+            }
+        }
+
+        throw new IllegalStateException(
+            "Could not resolve the generic element type of Collection<T>. Target type: "
+                + arg
+                + System.lineSeparator()
+                + "Supported formats: List<Foo>, List<? extends Foo>, List<T extends Foo>"
+        );
     }
 
     /**
