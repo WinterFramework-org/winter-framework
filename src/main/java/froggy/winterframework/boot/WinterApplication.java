@@ -149,7 +149,7 @@ public class WinterApplication {
      * @param context ApplicationContext
      */
     private void refreshContext(ApplicationContext context) {
-        prepareBeanFactory(context.getBeanFactory(), context.getEnvironment());
+        prepareBeanFactory(context.getBeanFactory(), context.getEnvironment(), context);
 
         registerBeanDefinition(context.getBeanFactory());
 
@@ -158,8 +158,9 @@ public class WinterApplication {
         finishBeanFactoryInitialization(context.getBeanFactory());
     }
 
-    private void prepareBeanFactory(BeanFactory beanFactory, Environment environment) {
+    private void prepareBeanFactory(BeanFactory beanFactory, Environment environment, ApplicationContext context) {
         beanFactory.addEnvironment(environment);
+        beanFactory.registerResolvableDependency(ApplicationContext.class, context);
     }
 
     /**

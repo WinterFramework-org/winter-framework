@@ -34,6 +34,7 @@ public class BeanFactory extends SingletonBeanRegistry {
 
     /** BeanName을 Key로 하는 BeanDefinition 객체 Map */
     private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(32);
+    private final Map<Class<?>, Object> resolvableDependencies = new ConcurrentHashMap<>(8);
 
     /** 애플리케이션 전체 설정(properties, 환경변수 등)을 제공하는 Environment */
     private Environment environment;
@@ -424,8 +425,12 @@ public class BeanFactory extends SingletonBeanRegistry {
      * @throws IllegalStateException Bean이 없거나 두 개 이상인 경우
      */
     private <T> T resolveDependency(Class<T> requiredType) {
-        List<String> candidateBeanNames = getBeanNamesForType(requiredType);
+        Object dependency = resolvableDependencies.get(requiredType);
+        if (dependency != null) {
+            return requiredType.cast(dependency);
+        }
 
+        List<String> candidateBeanNames = getBeanNamesForType(requiredType);
         if (candidateBeanNames.isEmpty()) {
             throw new IllegalStateException(
                 "No bean found of type [" + requiredType.getName() + "]. " +
@@ -441,7 +446,7 @@ public class BeanFactory extends SingletonBeanRegistry {
 
         return getBean(candidateBeanNames.get(0), requiredType);
     }
-    
+
     /**
      * {@code Collection} 파라미터(예: {@code List<T>})의 제네릭 요소 타입 {@code T} 추출
      * 지원: {@code List<Foo>}, {@code List<? extends Foo>}, {@code List<T}(선언부에서 {@code T extends Foo}로 제한된 경우).
@@ -505,6 +510,19 @@ public class BeanFactory extends SingletonBeanRegistry {
      */
     protected boolean containsBeanDefinition(String beanName) {
         return beanDefinitionMap.containsKey(beanName);
+    }
+
+    /**
+     * 특정 타입에대한 특수 의존성을 직접 등록할 수 있게 하는 메소드.
+     * DI(Dependency Injection)시 일반 Bean보다 우선 조회되는 '특수 의존성'
+     *
+     * @param dependencyType 의존성으로 등록할 객체의 타입
+     * @param autowiredValue 주입될 실제 객체 인스턴스
+     */
+    public void registerResolvableDependency(Class<?> dependencyType, Object autowiredValue) {
+        if (autowiredValue == null) return;
+
+        resolvableDependencies.put(dependencyType, autowiredValue);
     }
 
 }
