@@ -7,6 +7,7 @@ import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.utils.WinterUtils;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,10 +32,18 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
     }
 
     private Set<Class<?>> findConfigurationCandidates(BeanFactory beanFactory) {
-        return WinterUtils.scanTypesAnnotatedWith(
-            Configuration.class,
+        Set<Class<?>> result = new LinkedHashSet<>();
+
+        result.addAll(WinterUtils.scanTypesAnnotatedWith(
+            Component.class,
             beanFactory.resolveEmbeddedValue("basePackage")
-        );
+        ));
+
+        result.addAll(WinterUtils.scanTypesAnnotatedWith(
+            Component.class,
+            "froggy.winterframework"
+        ));
+        return result;
     }
 
     /**

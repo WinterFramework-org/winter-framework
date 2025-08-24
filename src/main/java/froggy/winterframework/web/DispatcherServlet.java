@@ -1,6 +1,8 @@
 package froggy.winterframework.web;
 
+import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.context.ApplicationContext;
+import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.servlet.HandlerAdapter;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
@@ -42,7 +44,30 @@ public class DispatcherServlet extends HttpServlet {
     @Override
     public void init() {
         initHandlerAdapters();
-        requestMappingHandlerMapping = (RequestMappingHandlerMapping) context.getBean("requestMappingHandlerMapping");
+        initHandlerMapping();
+    }
+
+    private void initHandlerAdapters() {
+        BeanFactory beanFactory = context.getBeanFactory();
+
+        DefaultControllerHandlerAdapter adapter =
+            beanFactory.getBean(
+                WinterUtils.resolveSimpleBeanName(DefaultControllerHandlerAdapter.class),
+                DefaultControllerHandlerAdapter.class
+            );
+
+        handlerAdapters.add(adapter);
+    }
+
+    private void initHandlerMapping() {
+        BeanFactory beanFactory = context.getBeanFactory();
+
+        requestMappingHandlerMapping =
+            beanFactory.getBean(
+                WinterUtils.resolveSimpleBeanName(RequestMappingHandlerMapping.class),
+                RequestMappingHandlerMapping.class
+            );
+
         try {
             requestMappingHandlerMapping.afterPropertiesSet();
         } catch (RuntimeException e) {
@@ -50,10 +75,6 @@ public class DispatcherServlet extends HttpServlet {
             e.printStackTrace();
             System.exit(1);
         }
-    }
-
-    private void initHandlerAdapters() {
-        handlerAdapters.add(new DefaultControllerHandlerAdapter());
     }
 
     /**

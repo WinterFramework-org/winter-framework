@@ -14,7 +14,6 @@ import froggy.winterframework.core.PropertySource;
 import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.utils.WinterUtils;
-import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,9 +54,6 @@ public class WinterApplication {
         // 애플리케이션의 빈 관리 및 컨텍스트를 초기화하기 위한 기본 객체
         ApplicationContext context = new ApplicationContext();
 
-        // 필수 컴포넌트 수동 등록
-        initContext(context);
-
         // 환경설정, 리스너 등록
         prepareContext(context, environment);
 
@@ -82,28 +78,6 @@ public class WinterApplication {
         environment.getPropertySource().mergePropertySource(new PropertySource("system", property));
 
         return environment;
-    }
-
-    /**
-     * 필수 Bean을 ApplicationContext에 등록.
-     * <p>현재는 DI 기능이 없어 {@code RequestMappingHandlerMapping}을 수동 등록.
-     *
-     * @param context ApplicationContext
-     */
-    private void initContext(ApplicationContext context) {
-        BeanFactory beanFactory = context.getBeanFactory();
-
-        String beanName = WinterUtils.resolveSimpleBeanName(RequestMappingHandlerMapping.class);
-
-        beanFactory.registerBeanDefinition(
-            beanName,
-            new BeanDefinition(RequestMappingHandlerMapping.class)
-        );
-
-        beanFactory.registerSingleton(
-            beanName,
-            new RequestMappingHandlerMapping(context)
-        );
     }
 
     /**
@@ -213,6 +187,13 @@ public class WinterApplication {
             Component.class,
             mainApplicationClass.getPackage().getName()
         );
+
+        Set<Class<?>> classes = WinterUtils.scanTypesAnnotatedWith(
+            Component.class,
+            "froggy.winterframework"
+        );
+
+        appBeans.addAll(classes);
 
         Set<Class<?>> externalBeans = scanAutoConfigClasses();
         appBeans.addAll(externalBeans);
