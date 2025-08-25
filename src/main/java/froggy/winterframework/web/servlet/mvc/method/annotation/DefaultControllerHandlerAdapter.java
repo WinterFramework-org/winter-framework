@@ -17,7 +17,7 @@ import froggy.winterframework.web.servlet.HandlerAdapter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -27,8 +27,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
-    private final List<HandlerMethodArgumentResolver> resolvers = new ArrayList<>();
-    private final List<HandlerMethodReturnValueHandler> returnValueHandlers = new ArrayList<>();
+    private final List<HandlerMethodArgumentResolver> resolvers = new LinkedList<>();
+    private final List<HandlerMethodReturnValueHandler> returnValueHandlers = new LinkedList<>();
 
     public DefaultControllerHandlerAdapter() {
         initResolver();
@@ -47,6 +47,14 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
     private void initReturnValueHandlers() {
         returnValueHandlers.add(new ModelAndViewMethodReturnValueHandler());
         returnValueHandlers.add(new ResponseBodyMethodReturnValueHandler());
+    }
+
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> customArgumentResolvers) {
+        resolvers.addAll(customArgumentResolvers);
+    }
+
+    public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> customReturnValueHandlers) {
+        returnValueHandlers.addAll(customReturnValueHandlers);
     }
 
     /**
