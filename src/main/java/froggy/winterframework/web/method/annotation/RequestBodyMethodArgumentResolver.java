@@ -2,6 +2,7 @@ package froggy.winterframework.web.method.annotation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import froggy.winterframework.web.bind.annotation.RequestBody;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import java.io.BufferedReader;
@@ -55,6 +56,7 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
 
     private <T> T parseJsonToType(String requestData, Class<T> requiredType) {
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
         try {
             return objectMapper.readValue(requestData, requiredType);
         } catch (JsonProcessingException e) {
