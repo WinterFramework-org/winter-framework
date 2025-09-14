@@ -11,7 +11,7 @@ import java.lang.reflect.Parameter;
 import javax.servlet.http.HttpServletRequest;
 
 /**
- * @RequestBody 애노테이션이 붙은 파라미터를 처리하는 Argument Resolver.
+ * {@link RequestBody} 애노테이션이 붙은 파라미터를 처리하는 Argument Resolver.
  *
  * <p>HTTP 요청 본문(JSON)을 읽어 Java 객체로 변환해 컨트롤러 메서드 파라미터로 주입.</p>
  */
@@ -34,7 +34,6 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
      * @param parameter @RequestBody가 붙은 메서드 파라미터
      * @param request   현재 HTTP 요청 객체
      * @return 변환된 객체 (요청 본문을 파싱한 결과)
-     * @throws Exception 변환 중 오류 발생 시
      */
     @Override
     public Object resolveArgument(Parameter parameter, HttpServletRequest request) {
