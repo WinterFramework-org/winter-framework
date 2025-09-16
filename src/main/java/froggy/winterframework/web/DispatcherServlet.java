@@ -112,7 +112,10 @@ public class DispatcherServlet extends HttpServlet {
         try {
             modelAndView = handlerAdapter.handle(request, response, handlerMethod);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+            throw new ServletException("Handler execution failed", e);
         }
 
         processDispatchResult(request, response, modelAndView);
