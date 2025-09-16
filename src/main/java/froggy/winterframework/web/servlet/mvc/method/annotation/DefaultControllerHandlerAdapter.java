@@ -90,22 +90,18 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
         Object[] args = getMethodArgumentValues(request, method.getParameters());
 
-        try {
-            Object returnValue = method.invoke(instance, args);
+        Object returnValue = invokeHandlerMethod(instance, method, args);
 
-            for (HandlerMethodReturnValueHandler returnValueHandler : returnValueHandlers) {
-                if (returnValueHandler.supportsReturnType(handlerMethod)) {
-                    returnValueHandler.handleReturnValue(returnValue, returnValue.getClass(), request, response);
-                    return ModelAndView.createModelAndView(returnValue);
-                }
+        for (HandlerMethodReturnValueHandler returnValueHandler : returnValueHandlers) {
+            if (returnValueHandler.supportsReturnType(handlerMethod)) {
+                returnValueHandler.handleReturnValue(returnValue, returnValue.getClass(), request, response);
+                return ModelAndView.createModelAndView(returnValue);
             }
-
-            throw new IllegalStateException("No suitable HandlerMethodReturnValueHandler found for return type: "
-                + returnValue.getClass().getName() + " in method: "
-                + instance.getClass().getSimpleName() + "#" + method.getName());
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new IllegalStateException("Failed to invoke handler method: " + instance.getClass() + "#" + method.getName(), e);
         }
+
+        throw new IllegalStateException("No suitable HandlerMethodReturnValueHandler found for return type: "
+            + returnValue.getClass().getName() + " in method: "
+            + instance.getClass().getSimpleName() + "#" + method.getName());
     }
 
     /**
@@ -146,5 +142,20 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
             }
         }
         return null;
+    }
+
+    private Object invokeHandlerMethod(Object instance, Method method, Object[] args) throws Exception {
+        try {
+            return method.invoke(instance, args);
+        } catch (IllegalAccessException | IllegalArgumentException e) {
+            throw new IllegalStateException("Failed to invoke handler method: " + instance.getClass() + "#" + method.getName(), e);
+        } catch (InvocationTargetException e) {
+            Throwable ex = e.getCause();
+            if (ex instanceof Exception) {
+                throw (Exception) ex;
+            } else {
+                throw new RuntimeException(ex);
+            }
+        }
     }
 }
