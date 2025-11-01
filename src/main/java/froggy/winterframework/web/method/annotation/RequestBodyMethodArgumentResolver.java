@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import froggy.winterframework.web.bind.annotation.RequestBody;
+import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -32,13 +33,14 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
      * HTTP 요청 본문을 읽어 파라미터 타입에 맞는 객체로 변환.
      *
      * @param parameter @RequestBody가 붙은 메서드 파라미터
-     * @param request   현재 HTTP 요청 객체
+     * @param webRequest 현재 Request 컨텍스트
      * @return 변환된 객체 (요청 본문을 파싱한 결과)
      */
     @Override
-    public Object resolveArgument(Parameter parameter, HttpServletRequest request) {
+    public Object resolveArgument(Parameter parameter, NativeWebRequest webRequest) {
         StringBuilder sb = new StringBuilder();
 
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
         try (BufferedReader reader = request.getReader()) {
             String line;
             while ((line = reader.readLine()) != null) {

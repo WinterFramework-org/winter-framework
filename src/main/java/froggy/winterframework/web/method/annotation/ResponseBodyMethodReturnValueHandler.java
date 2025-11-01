@@ -4,11 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import froggy.winterframework.web.bind.annotation.ResponseBody;
+import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
 import java.io.IOException;
 import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
@@ -34,16 +34,15 @@ public class ResponseBodyMethodReturnValueHandler implements HandlerMethodReturn
      *
      * @param returnValue 핸들러 메소드의 반환 값
      * @param returnType 반환 값의 클래스 타입
-     * @param request HTTP 요청 객체
-     * @param response HTTP 응답 객체
+     * @param webRequest 현재 Request 컨텍스트
      */
     @Override
-    public void handleReturnValue(Object returnValue, Class<?> returnType,
-        HttpServletRequest request, HttpServletResponse response) {
+    public void handleReturnValue(Object returnValue, Class<?> returnType, NativeWebRequest webRequest) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
+        HttpServletResponse response = webRequest.getNativeResponse(HttpServletResponse.class);
         try {
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");

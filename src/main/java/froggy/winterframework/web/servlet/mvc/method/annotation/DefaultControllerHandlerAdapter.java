@@ -4,6 +4,8 @@ import froggy.winterframework.stereotype.Controller;
 import froggy.winterframework.utils.DefaultTypeConverter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.ModelAndView;
+import froggy.winterframework.web.context.request.NativeWebRequest;
+import froggy.winterframework.web.context.request.ServletWebRequest;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.annotation.ModelAndViewMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.PathVariableMethodArgumentResolver;
@@ -88,13 +90,15 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         Method method = handlerMethod.getMethod();
         Object instance = handlerMethod.getHandlerInstance();
 
-        Object[] args = getMethodArgumentValues(request, method.getParameters());
+        NativeWebRequest webRequest = new ServletWebRequest(request, response);
+
+        Object[] args = getMethodArgumentValues(webRequest, method.getParameters());
 
         Object returnValue = invokeHandlerMethod(instance, method, args);
 
         for (HandlerMethodReturnValueHandler returnValueHandler : returnValueHandlers) {
             if (returnValueHandler.supportsReturnType(handlerMethod)) {
-                returnValueHandler.handleReturnValue(returnValue, returnValue.getClass(), request, response);
+                returnValueHandler.handleReturnValue(returnValue, returnValue.getClass(), webRequest);
                 return ModelAndView.createModelAndView(returnValue);
             }
         }
@@ -107,17 +111,17 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
     /**
      * HTTP Request에서 값을 추출하여 Handler(Controller)의 호출에 필요한 인자 값을 생성
      *
-     * @param request    HTTP 요청 객체
+     * @param webRequest 현재 Request 컨텍스트
      * @param parameters 메소드의 파라미터 배열
      * @return 생성된 인자 값 배열
      * @throws Exception 인자 값을 해결할 수 없는 경우 예외 발생
      */
-    public Object[] getMethodArgumentValues(HttpServletRequest request, Parameter[] parameters)
+    public Object[] getMethodArgumentValues(NativeWebRequest webRequest, Parameter[] parameters)
         throws Exception {
         Object[] args = new Object[parameters.length];
 
         for (int i = 0; i < parameters.length; i++) {
-            args[i] = resolveArgumentForParameter(parameters[i], request);
+            args[i] = resolveArgumentForParameter(parameters[i], webRequest);
         }
 
         return args;
@@ -130,15 +134,15 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
      * 해당 파라미터를 처리할 수 있는 Resolver를 찾아 변환.</p>
      *
      * @param parameter 변환할 파라미터
-     * @param request   HTTP 요청 객체
+     * @param webRequest 현재 Request 컨텍스트
      * @return 변환된 파라미터 값, 해결할 수 없는 경우 {@code null} 반환
      * @throws Exception 변환 과정에서 예외 발생 시
      */
-    private Object resolveArgumentForParameter(Parameter parameter, HttpServletRequest request)
+    private Object resolveArgumentForParameter(Parameter parameter, NativeWebRequest webRequest)
         throws Exception {
         for (HandlerMethodArgumentResolver resolver : resolvers) {
             if (resolver.supportsParameter(parameter)) {
-                return resolver.resolveArgument(parameter, request);
+                return resolver.resolveArgument(parameter, webRequest);
             }
         }
         return null;

@@ -2,8 +2,8 @@ package froggy.winterframework.web.method.annotation;
 
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.RequestParam;
+import froggy.winterframework.web.context.request.NativeWebRequest;
 import java.lang.reflect.Parameter;
-import javax.servlet.http.HttpServletRequest;
 
 /**
  * {@link RequestParam} 어노테이션을 처리하는 Argument Resolver.
@@ -21,9 +21,9 @@ public class RequestParamMethodArgumentResolver extends AbstractMethodArgumentRe
     }
 
     @Override
-    protected String extractValue(Parameter parameter, HttpServletRequest request) {
+    protected String extractValue(Parameter parameter, NativeWebRequest webRequest) {
         String paramName = parameter.getAnnotation(RequestParam.class).value();
-        return request.getParameter(paramName);
+        return webRequest.getParameter(paramName);
     }
 
     /**

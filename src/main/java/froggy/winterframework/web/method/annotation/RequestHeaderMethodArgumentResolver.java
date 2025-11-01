@@ -2,8 +2,8 @@ package froggy.winterframework.web.method.annotation;
 
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.RequestHeader;
+import froggy.winterframework.web.context.request.NativeWebRequest;
 import java.lang.reflect.Parameter;
-import javax.servlet.http.HttpServletRequest;
 
 /**
  * HTTP 요청의 Header 값을 추출하여 적절한 타입으로 변환하는 Resolver.
@@ -32,14 +32,14 @@ public class RequestHeaderMethodArgumentResolver extends AbstractMethodArgumentR
      * HTTP Request Header에서 특정 헤더의 값을 추출한다.
      *
      * @param parameter 추출할 대상 헤더와 매핑된 파라매터 객체
-     * @param request   HTTP 요청 객체
+     * @param webRequest 현재 Request 컨텍스트
      * @return HTTP Request Header에서 추출한 헤더 값 (없을 경우 {@code null} 반환)
      */
     @Override
-    protected String extractValue(Parameter parameter, HttpServletRequest request) {
+    protected String extractValue(Parameter parameter, NativeWebRequest webRequest) {
         String name = parameter.getAnnotation(RequestHeader.class).value();
 
-        return request.getHeader(name);
+        return webRequest.getHeader(name);
     }
 
     /**

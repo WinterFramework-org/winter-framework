@@ -2,15 +2,15 @@ package froggy.winterframework.web.method.annotation;
 
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.ValueConstants;
+import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import java.lang.reflect.Parameter;
-import javax.servlet.http.HttpServletRequest;
 
 /**
  * HTTP 요청의 매개변수를 추출하고 변환하는 abstract 클래스.
  *
  * <p>직접적인 타입 변환은 {@code TypeConverter}에서 수행하며,
- * 하위 클래스는 {@link #extractValue(Parameter, HttpServletRequest)}와
+ * 하위 클래스는 {@link #extractValue(Parameter, NativeWebRequest)}와
  * {@link #supportsParameter(Parameter)}를 오버라이드하여 구현</p>
 
  */
@@ -26,15 +26,15 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      * 주어진 HTTP 요청에서 매개변수를 추출하고 변환하여 반환한다.
      *
      * @param parameter 변환할 매개변수 객체
-     * @param request   HTTP 요청 객체
+     * @param webRequest 현재 Request 컨텍스트
      * @return 변환된 매개변수 값
      * @throws IllegalStateException 변환 과정에서 발생하는 예외
      */
     @Override
-    public Object resolveArgument(Parameter parameter, HttpServletRequest request) throws IllegalStateException {
+    public Object resolveArgument(Parameter parameter, NativeWebRequest webRequest) throws IllegalStateException {
         NamedValueInfo namedValueInfo = createNamedValueInfo(parameter);
 
-        String extractValue = extractValue(parameter, request);
+        String extractValue = extractValue(parameter, webRequest);
         Class<?> targetType = parameter.getType();
 
         String resolvedValue = getValueOrDefault(extractValue, namedValueInfo);
@@ -82,10 +82,10 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      * <p>구현 클래스에서 해당 로직을 정의해야 한다.</p>
      *
      * @param parameter 추출할 매개변수 객체
-     * @param request   HTTP 요청 객체
+     * @param webRequest 현재 Request 컨텍스트
      * @return 요청에서 추출한 문자열 값 (없을 경우 {@code null} 반환)
      */
-    protected abstract String extractValue(Parameter parameter, HttpServletRequest request);
+    protected abstract String extractValue(Parameter parameter, NativeWebRequest webRequest);
 
     /**
      * 주어진 매개변수에서 이름, 필수 여부, 기본값 정보를 담은 {@link NamedValueInfo} 객체를 생성한다.

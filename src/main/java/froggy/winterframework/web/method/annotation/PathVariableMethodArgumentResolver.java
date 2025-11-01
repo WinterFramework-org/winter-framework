@@ -1,11 +1,13 @@
 package froggy.winterframework.web.method.annotation;
 
+import static froggy.winterframework.web.context.request.NativeWebRequest.SCOPE_REQUEST;
+
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.PathVariable;
 import froggy.winterframework.web.bind.annotation.ValueConstants;
+import froggy.winterframework.web.context.request.NativeWebRequest;
 import java.lang.reflect.Parameter;
 import java.util.HashMap;
-import javax.servlet.http.HttpServletRequest;
 
 /**
  * HTTP 요청 URI에서 {@link PathVariable} 어노테이션이 적용 된 매개변수의 값을 추출하여 변환하는 Resolver
@@ -34,13 +36,13 @@ public class PathVariableMethodArgumentResolver extends AbstractMethodArgumentRe
      * HTTP 요청에서 URI 템플릿 변수로부터 파라매터에 해당하는 값을 추출
      *
      * @param parameter {@code @PathVariable}이 적용된 매개변수
-     * @param request   HTTP 요청 객체
+     * @param webRequest 현재 Request 컨텍스트
      * @return 매핑된 값, 없으면 {@code null} 반환
      */
     @Override
-    protected String extractValue(Parameter parameter, HttpServletRequest request) {
+    protected String extractValue(Parameter parameter, NativeWebRequest webRequest) {
         String paramName = parameter.getAnnotation(PathVariable.class).value();
-        HashMap<String, String> map = (HashMap<String, String>) request.getAttribute("uriTemplateVariables");
+        HashMap<String, String> map = (HashMap<String, String>) webRequest.getAttribute("uriTemplateVariables", SCOPE_REQUEST);
 
         return map.get(paramName);
     }

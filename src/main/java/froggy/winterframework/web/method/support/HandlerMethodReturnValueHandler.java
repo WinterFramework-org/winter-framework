@@ -1,8 +1,7 @@
 package froggy.winterframework.web.method.support;
 
+import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.HandlerMethod;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  * 핸들러 메소드의 반환 값을 처리하는 인터페이스.
@@ -22,8 +21,7 @@ public interface HandlerMethodReturnValueHandler {
      *
      * @param returnValue 핸들러 메소드의 반환 값
      * @param returnType 반환 값의 클래스 타입
-     * @param request HTTP 요청 객체
-     * @param response HTTP 응답 객체
+     * @param webRequest 현재 Request 컨텍스트
      */
-    void handleReturnValue(Object returnValue, Class<?> returnType, HttpServletRequest request, HttpServletResponse response);
+    void handleReturnValue(Object returnValue, Class<?> returnType, NativeWebRequest webRequest);
 }
