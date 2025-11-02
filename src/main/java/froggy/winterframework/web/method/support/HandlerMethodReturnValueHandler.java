@@ -1,5 +1,6 @@
 package froggy.winterframework.web.method.support;
 
+import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.HandlerMethod;
 
@@ -22,6 +23,7 @@ public interface HandlerMethodReturnValueHandler {
      * @param returnValue 핸들러 메소드의 반환 값
      * @param returnType 반환 값의 클래스 타입
      * @param webRequest 현재 Request 컨텍스트
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      */
-    void handleReturnValue(Object returnValue, Class<?> returnType, NativeWebRequest webRequest);
+    void handleReturnValue(Object returnValue, Class<?> returnType, NativeWebRequest webRequest, ModelAndView mavContainer);
 }

@@ -3,6 +3,7 @@ package froggy.winterframework.web.method.annotation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.bind.annotation.RequestBody;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
@@ -34,10 +35,11 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
      *
      * @param parameter @RequestBody가 붙은 메서드 파라미터
      * @param webRequest 현재 Request 컨텍스트
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      * @return 변환된 객체 (요청 본문을 파싱한 결과)
      */
     @Override
-    public Object resolveArgument(Parameter parameter, NativeWebRequest webRequest) {
+    public Object resolveArgument(Parameter parameter, NativeWebRequest webRequest, ModelAndView mavContainer) {
         StringBuilder sb = new StringBuilder();
 
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);

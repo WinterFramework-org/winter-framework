@@ -27,9 +27,24 @@ public class ModelAndViewMethodReturnValueHandler implements HandlerMethodReturn
      * @param returnValue 핸들러 메소드의 반환 값
      * @param returnType 반환 값의 클래스 타입
      * @param webRequest 현재 Request 컨텍스트
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      */
     @Override
-    public void handleReturnValue(Object returnValue, Class<?> returnType, NativeWebRequest webRequest) {
-        // ModelAndView 처리는 DispatcherServlet의 render() 메서드에서 진행
+    public void handleReturnValue(
+        Object returnValue,
+        Class<?> returnType,
+        NativeWebRequest webRequest,
+        ModelAndView mavContainer
+    ) {
+        if (returnValue == null) {
+            return;
+        }
+        ModelAndView returnedMv = (ModelAndView) returnValue;
+
+        mavContainer.setView(returnedMv.getView());
+
+        if (returnedMv.getModel() != null) {
+            mavContainer.getModel().putAll(returnedMv.getModel());
+        }
     }
 }

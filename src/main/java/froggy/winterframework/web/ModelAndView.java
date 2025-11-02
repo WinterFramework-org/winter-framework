@@ -22,18 +22,18 @@ public class ModelAndView {
         this(view, model, false);
     }
 
-    public ModelAndView(String view, Map<String, Object> model, boolean requestHandled) {
+    private ModelAndView(String view, Map<String, Object> model, boolean requestHandled) {
         this.view = view;
         this.model = model;
         this.requestHandled = requestHandled;
     }
 
-    public static ModelAndView createModelAndView(Object returnValue) {
-        if (returnValue instanceof ModelAndView) {
-            return (ModelAndView) returnValue;
-        }
+    public static ModelAndView createContainer() {
+        return new ModelAndView(null, new HashMap<>(), false);
+    }
 
-        return new ModelAndView(null, null, true);
+    public void setView(String view) {
+        this.view = view;
     }
 
     public String getView() {

@@ -3,6 +3,7 @@ package froggy.winterframework.web.method.annotation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.bind.annotation.ResponseBody;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.HandlerMethod;
@@ -35,9 +36,17 @@ public class ResponseBodyMethodReturnValueHandler implements HandlerMethodReturn
      * @param returnValue 핸들러 메소드의 반환 값
      * @param returnType 반환 값의 클래스 타입
      * @param webRequest 현재 Request 컨텍스트
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      */
     @Override
-    public void handleReturnValue(Object returnValue, Class<?> returnType, NativeWebRequest webRequest) {
+    public void handleReturnValue(
+        Object returnValue,
+        Class<?> returnType,
+        NativeWebRequest webRequest,
+        ModelAndView mavContainer
+    ) {
+        mavContainer.setRequestHandled(true);
+
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);

@@ -91,15 +91,21 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         Object instance = handlerMethod.getHandlerInstance();
 
         NativeWebRequest webRequest = new ServletWebRequest(request, response);
-
-        Object[] args = getMethodArgumentValues(webRequest, method.getParameters());
+        ModelAndView mavContainer = ModelAndView.createContainer();
+        Object[] args = getMethodArgumentValues(webRequest, method.getParameters(), mavContainer);
 
         Object returnValue = invokeHandlerMethod(instance, method, args);
 
+        if (returnValue == null && mavContainer.isRequestHandled()) {
+            return mavContainer;
+        }
+
+        mavContainer.setRequestHandled(false);
         for (HandlerMethodReturnValueHandler returnValueHandler : returnValueHandlers) {
             if (returnValueHandler.supportsReturnType(handlerMethod)) {
-                returnValueHandler.handleReturnValue(returnValue, returnValue.getClass(), webRequest);
-                return ModelAndView.createModelAndView(returnValue);
+                returnValueHandler.handleReturnValue(
+                    returnValue, returnValue.getClass(), webRequest, mavContainer);
+                return mavContainer;
             }
         }
 
@@ -113,15 +119,20 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
      *
      * @param webRequest 현재 Request 컨텍스트
      * @param parameters 메소드의 파라미터 배열
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      * @return 생성된 인자 값 배열
      * @throws Exception 인자 값을 해결할 수 없는 경우 예외 발생
      */
-    public Object[] getMethodArgumentValues(NativeWebRequest webRequest, Parameter[] parameters)
+    public Object[] getMethodArgumentValues(
+        NativeWebRequest webRequest,
+        Parameter[] parameters,
+        ModelAndView mavContainer
+    )
         throws Exception {
         Object[] args = new Object[parameters.length];
 
         for (int i = 0; i < parameters.length; i++) {
-            args[i] = resolveArgumentForParameter(parameters[i], webRequest);
+            args[i] = resolveArgumentForParameter(parameters[i], webRequest, mavContainer);
         }
 
         return args;
@@ -135,14 +146,19 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
      *
      * @param parameter 변환할 파라미터
      * @param webRequest 현재 Request 컨텍스트
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      * @return 변환된 파라미터 값, 해결할 수 없는 경우 {@code null} 반환
      * @throws Exception 변환 과정에서 예외 발생 시
      */
-    private Object resolveArgumentForParameter(Parameter parameter, NativeWebRequest webRequest)
+    private Object resolveArgumentForParameter(
+        Parameter parameter,
+        NativeWebRequest webRequest,
+        ModelAndView mavContainer
+    )
         throws Exception {
         for (HandlerMethodArgumentResolver resolver : resolvers) {
             if (resolver.supportsParameter(parameter)) {
-                return resolver.resolveArgument(parameter, webRequest);
+                return resolver.resolveArgument(parameter, webRequest, mavContainer);
             }
         }
         return null;

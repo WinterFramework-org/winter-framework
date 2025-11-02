@@ -1,6 +1,7 @@
 package froggy.winterframework.web.method.annotation;
 
 import froggy.winterframework.utils.convert.TypeConverter;
+import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.bind.annotation.ValueConstants;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
@@ -27,11 +28,16 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      *
      * @param parameter 변환할 매개변수 객체
      * @param webRequest 현재 Request 컨텍스트
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      * @return 변환된 매개변수 값
      * @throws IllegalStateException 변환 과정에서 발생하는 예외
      */
     @Override
-    public Object resolveArgument(Parameter parameter, NativeWebRequest webRequest) throws IllegalStateException {
+    public Object resolveArgument(
+        Parameter parameter,
+        NativeWebRequest webRequest,
+        ModelAndView mavContainer
+    ) throws IllegalStateException {
         NamedValueInfo namedValueInfo = createNamedValueInfo(parameter);
 
         String extractValue = extractValue(parameter, webRequest);

@@ -1,5 +1,6 @@
 package froggy.winterframework.web.method.support;
 
+import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import java.lang.reflect.Parameter;
 
@@ -23,8 +24,9 @@ public interface HandlerMethodArgumentResolver {
      *
      * @param parameter 변환할 파라미터 객체
      * @param webRequest 현재 Request 컨텍스트
+     * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
      * @return 변환된 인자 값
      * @throws Exception 변환 과정에서 발생하는 예외
      */
-    Object resolveArgument(Parameter parameter, NativeWebRequest webRequest) throws Exception;
+    Object resolveArgument(Parameter parameter, NativeWebRequest webRequest, ModelAndView mavContainer) throws Exception;
 }
