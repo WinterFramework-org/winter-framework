@@ -57,7 +57,7 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
         return parseJsonToType(requestData, parameter.getType());
     }
 
-    private <T> T parseJsonToType(String requestData, Class<T> requiredType) {
+    protected  <T> T parseJsonToType(String requestData, Class<T> requiredType) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         try {
