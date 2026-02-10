@@ -10,6 +10,8 @@ import froggy.winterframework.web.bind.annotation.RequestMapping;
 import froggy.winterframework.web.bind.annotation.RequestMethod;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.RequestMappingInfo;
+import froggy.winterframework.web.servlet.MethodNotAllowedException;
+import froggy.winterframework.web.servlet.NoHandlerFoundException;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -17,6 +19,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
 /**
@@ -167,13 +170,17 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
      * @param request Request객체
      * @return 매핑된 {@link HandlerMethod}, 매핑이 없으면 {@code null} 반환
      */
-    public HandlerMethod getHandlerMethod(HttpServletRequest request) {
+    public HandlerMethod getHandlerMethod(HttpServletRequest request) throws ServletException {
         String requestURI = request.getRequestURI();
         String requestMethod = request.getMethod();
 
         HandlerMethod handlerMethod = lookupHandlerMethod(requestURI, requestMethod);
         if (handlerMethod == null) {
-            throw new IllegalStateException("No matching handler method found for request [URI: " + requestURI + ", Method: " + requestMethod + "]");
+            Set<String> allowedMethods = mappingRegistry.getAllowedMethods(requestURI);
+            if (!allowedMethods.isEmpty()) {
+                throw new MethodNotAllowedException(requestMethod, requestURI, allowedMethods);
+            }
+            throw new NoHandlerFoundException(requestMethod, requestURI);
         }
 
         extractPathVariables(handlerMethod, request);
@@ -248,6 +255,27 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
             }
 
             return true;
+        }
+
+        public Set<String> getAllowedMethods(String requestURI) {
+            Set<String> allowedMethods = new HashSet<>();
+
+            for (RequestMappingInfo info : directPathHandlerMap.keySet()) {
+                if (info.getUrlPattern().equals(requestURI)) {
+                    for (RequestMethod method : info.getHttpMethods()) {
+                        allowedMethods.add(method.name());
+                    }
+                }
+            }
+
+            for (RequestMappingInfo info : pathVariableHandlerMap.keySet()) {
+                if (isMatchingPattern(info.getUrlPattern(), requestURI)) {
+                    for (RequestMethod method : info.getHttpMethods()) {
+                        allowedMethods.add(method.name());
+                    }
+                }
+            }
+            return allowedMethods;
         }
 
         private boolean isMatchingMethod(Set<RequestMethod> requestMethods, String requestMethod) {

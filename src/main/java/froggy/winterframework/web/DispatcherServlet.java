@@ -5,6 +5,8 @@ import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.servlet.HandlerAdapter;
+import froggy.winterframework.web.servlet.MethodNotAllowedException;
+import froggy.winterframework.web.servlet.NoHandlerFoundException;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import froggy.winterframework.web.servlet.mvc.method.annotation.DefaultControllerHandlerAdapter;
 import java.io.IOException;
@@ -105,7 +107,17 @@ public class DispatcherServlet extends HttpServlet {
         }
 
         // 요청 URI에 매핑되는 Handler(Controller) 메소드 객체 찾기
-        HandlerMethod handlerMethod = requestMappingHandlerMapping.getHandlerMethod(request);
+        HandlerMethod handlerMethod;
+        try {
+            handlerMethod = requestMappingHandlerMapping.getHandlerMethod(request);
+        } catch (NoHandlerFoundException e) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        } catch (MethodNotAllowedException e) {
+            response.addHeader("Allow", e.getAllowHeader());
+            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            return;
+        }
 
         ModelAndView modelAndView = null;
         HandlerAdapter handlerAdapter = getHandlerAdapter(handlerMethod);
