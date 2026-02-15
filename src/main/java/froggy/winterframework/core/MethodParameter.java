@@ -3,6 +3,7 @@ package froggy.winterframework.core;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
 
 /**
  * 핸들러 메서드의 파라미터 정보를 래핑하는 클래스.
@@ -17,17 +18,27 @@ public class MethodParameter {
     private final Method method;
     private final int parameterIndex;
     private final Parameter parameter;
+    private final Type genericParameterType;
 
     public MethodParameter(Method method, int parameterIndex) {
+        this(method, parameterIndex, getParameterSafely(method, parameterIndex));
+    }
+
+    private MethodParameter(Method method, int parameterIndex, Parameter parameter) {
+        this.method = method;
+        this.parameterIndex = parameterIndex;
+        this.parameter = parameter;
+        this.genericParameterType = parameter.getParameterizedType();
+    }
+
+    private static Parameter getParameterSafely(Method method, int parameterIndex) {
         if (parameterIndex < 0 || parameterIndex >= method.getParameterCount()) {
             throw new IllegalArgumentException(
                     "Parameter index [" + parameterIndex + "] out of bounds for method: "
                             + method.getDeclaringClass().getSimpleName() + "#" + method.getName()
                             + " (parameter count: " + method.getParameterCount() + ")");
         }
-        this.method = method;
-        this.parameterIndex = parameterIndex;
-        this.parameter = method.getParameters()[parameterIndex];
+        return method.getParameters()[parameterIndex];
     }
 
     /**
@@ -41,7 +52,7 @@ public class MethodParameter {
         MethodParameter[] result = new MethodParameter[parameters.length];
 
         for (int i = 0; i < parameters.length; i++) {
-            result[i] = new MethodParameter(method, i);
+            result[i] = new MethodParameter(method, i, parameters[i]);
         }
 
         return result;
@@ -82,6 +93,13 @@ public class MethodParameter {
      */
     public Class<?> getParameterType() {
         return parameter.getType();
+    }
+
+    /**
+     * 제네릭을 포함한 파라미터 타입을 반환한다.
+     */
+    public Type getGenericParameterType() {
+        return genericParameterType;
     }
 
     /**

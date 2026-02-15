@@ -10,6 +10,7 @@ import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import javax.servlet.http.HttpServletRequest;
 
 /**
@@ -54,14 +55,14 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
         }
 
         String requestData = sb.toString();
-        return parseJsonToType(requestData, parameter.getParameterType());
+        return parseJsonToType(requestData, parameter.getGenericParameterType());
     }
 
-    protected <T> T parseJsonToType(String requestData, Class<T> requiredType) {
+    protected Object parseJsonToType(String requestData, Type requiredType) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         try {
-            return objectMapper.readValue(requestData, requiredType);
+            return objectMapper.readValue(requestData, objectMapper.getTypeFactory().constructType(requiredType));
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(
                 "Invalid JSON request body. An error occurred during parsing: \n" + e.getMessage(), e
