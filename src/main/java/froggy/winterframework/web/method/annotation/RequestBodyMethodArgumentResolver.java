@@ -3,13 +3,13 @@ package froggy.winterframework.web.method.annotation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.bind.annotation.RequestBody;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.lang.reflect.Parameter;
 import javax.servlet.http.HttpServletRequest;
 
 /**
@@ -26,8 +26,8 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
      * @return 지원하면 {@code true}, 그렇지 않으면 {@code false}
      */
     @Override
-    public boolean supportsParameter(Parameter parameter) {
-        return parameter.isAnnotationPresent(RequestBody.class);
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.hasParameterAnnotation(RequestBody.class);
     }
 
     /**
@@ -39,7 +39,7 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
      * @return 변환된 객체 (요청 본문을 파싱한 결과)
      */
     @Override
-    public Object resolveArgument(Parameter parameter, NativeWebRequest webRequest, ModelAndView mavContainer) {
+    public Object resolveArgument(MethodParameter parameter, NativeWebRequest webRequest, ModelAndView mavContainer) {
         StringBuilder sb = new StringBuilder();
 
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
@@ -54,10 +54,10 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
         }
 
         String requestData = sb.toString();
-        return parseJsonToType(requestData, parameter.getType());
+        return parseJsonToType(requestData, parameter.getParameterType());
     }
 
-    protected  <T> T parseJsonToType(String requestData, Class<T> requiredType) {
+    protected <T> T parseJsonToType(String requestData, Class<T> requiredType) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
         try {

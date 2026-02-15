@@ -1,5 +1,6 @@
 package froggy.winterframework.web.servlet.mvc.method.annotation;
 
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.stereotype.Controller;
 import froggy.winterframework.utils.DefaultTypeConverter;
 import froggy.winterframework.utils.convert.TypeConverter;
@@ -20,7 +21,6 @@ import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler
 import froggy.winterframework.web.servlet.HandlerAdapter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.LinkedList;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
@@ -96,7 +96,9 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
         NativeWebRequest webRequest = new ServletWebRequest(request, response);
         ModelAndView mavContainer = ModelAndView.createContainer();
-        Object[] args = getMethodArgumentValues(webRequest, method.getParameters(), mavContainer);
+
+        MethodParameter[] methodParameters = MethodParameter.forMethod(method);
+        Object[] args = getMethodArgumentValues(webRequest, methodParameters, mavContainer);
 
         Object returnValue = invokeHandlerMethod(instance, method, args);
 
@@ -129,7 +131,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
      */
     public Object[] getMethodArgumentValues(
         NativeWebRequest webRequest,
-        Parameter[] parameters,
+        MethodParameter[] parameters,
         ModelAndView mavContainer
     )
         throws Exception {
@@ -155,7 +157,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
      * @throws Exception 변환 과정에서 예외 발생 시
      */
     private Object resolveArgumentForParameter(
-        Parameter parameter,
+        MethodParameter parameter,
         NativeWebRequest webRequest,
         ModelAndView mavContainer
     )

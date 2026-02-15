@@ -1,18 +1,18 @@
 package froggy.winterframework.web.method.annotation;
 
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.bind.annotation.ValueConstants;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
-import java.lang.reflect.Parameter;
 
 /**
  * HTTP 요청의 매개변수를 추출하고 변환하는 abstract 클래스.
  *
  * <p>직접적인 타입 변환은 {@code TypeConverter}에서 수행하며,
- * 하위 클래스는 {@link #extractValue(Parameter, NativeWebRequest)}와
- * {@link #supportsParameter(Parameter)}를 오버라이드하여 구현</p>
+ * 하위 클래스는 {@link #extractValue(MethodParameter, NativeWebRequest)}와
+ * {@link #supportsParameter(MethodParameter)}를 오버라이드하여 구현</p>
 
  */
 public abstract class AbstractMethodArgumentResolver implements HandlerMethodArgumentResolver {
@@ -34,14 +34,14 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      */
     @Override
     public Object resolveArgument(
-        Parameter parameter,
+        MethodParameter parameter,
         NativeWebRequest webRequest,
         ModelAndView mavContainer
     ) throws IllegalStateException {
         NamedValueInfo namedValueInfo = createNamedValueInfo(parameter);
 
         String extractValue = extractValue(parameter, webRequest);
-        Class<?> targetType = parameter.getType();
+        Class<?> targetType = parameter.getParameterType();
 
         String resolvedValue = getValueOrDefault(extractValue, namedValueInfo);
         if (resolvedValue == null) {
@@ -54,7 +54,6 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
             throw new IllegalStateException("Failed to convert request parameter '" + namedValueInfo.name + "' with value '" + resolvedValue + "' to type '" + targetType.getSimpleName() + "'.", e);
         }
     }
-
 
     /**
      * namedValueInfo 따라 값 반환 또는 예외 처리
@@ -91,7 +90,7 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      * @param webRequest 현재 Request 컨텍스트
      * @return 요청에서 추출한 문자열 값 (없을 경우 {@code null} 반환)
      */
-    protected abstract String extractValue(Parameter parameter, NativeWebRequest webRequest);
+    protected abstract String extractValue(MethodParameter parameter, NativeWebRequest webRequest);
 
     /**
      * 주어진 매개변수에서 이름, 필수 여부, 기본값 정보를 담은 {@link NamedValueInfo} 객체를 생성한다.
@@ -99,7 +98,7 @@ public abstract class AbstractMethodArgumentResolver implements HandlerMethodArg
      * @param parameter 정보를 추출할 매개변수
      * @return {@link NamedValueInfo} 객체
      */
-    protected abstract NamedValueInfo createNamedValueInfo(Parameter parameter);
+    protected abstract NamedValueInfo createNamedValueInfo(MethodParameter parameter);
 
     /**
      * 매개변수의 이름, 필수 여부, 기본값 정보를 담는 클래스.

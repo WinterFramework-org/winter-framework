@@ -1,16 +1,16 @@
 package froggy.winterframework.web.method.annotation;
 
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
-import java.lang.reflect.Parameter;
 import javax.servlet.ServletResponse;
 
 public class ServletResponseMethodArgumentResolver implements HandlerMethodArgumentResolver {
 
     @Override
-    public boolean supportsParameter(Parameter parameter) {
-        return ServletResponse.class.isAssignableFrom(parameter.getType());
+    public boolean supportsParameter(MethodParameter parameter) {
+        return ServletResponse.class.isAssignableFrom(parameter.getParameterType());
     }
 
     /**
@@ -24,7 +24,7 @@ public class ServletResponseMethodArgumentResolver implements HandlerMethodArgum
      * 요청을 직접 처리한 것으로 간주한다.
      */
     @Override
-    public Object resolveArgument(Parameter parameter, NativeWebRequest webRequest,
+    public Object resolveArgument(MethodParameter parameter, NativeWebRequest webRequest,
         ModelAndView mavContainer) throws Exception {
 
         mavContainer.setRequestHandled(true);
@@ -32,7 +32,7 @@ public class ServletResponseMethodArgumentResolver implements HandlerMethodArgum
         ServletResponse response = webRequest.getNativeResponse(ServletResponse.class);
         if (response == null) {
             throw new IllegalStateException(
-                "No native ServletResponse available for parameter: " + parameter.getName()
+                "No native ServletResponse available for parameter: " + parameter.getParameterName()
             );
         }
         return response;

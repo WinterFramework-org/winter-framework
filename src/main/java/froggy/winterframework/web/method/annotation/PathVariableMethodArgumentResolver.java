@@ -2,11 +2,11 @@ package froggy.winterframework.web.method.annotation;
 
 import static froggy.winterframework.web.context.request.NativeWebRequest.SCOPE_REQUEST;
 
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.PathVariable;
 import froggy.winterframework.web.bind.annotation.ValueConstants;
 import froggy.winterframework.web.context.request.NativeWebRequest;
-import java.lang.reflect.Parameter;
 import java.util.HashMap;
 
 /**
@@ -28,8 +28,8 @@ public class PathVariableMethodArgumentResolver extends AbstractMethodArgumentRe
      * @return 지원하면 {@code true}, 그렇지 않으면 {@code false}
      */
     @Override
-    public boolean supportsParameter(Parameter parameter) {
-        return parameter.isAnnotationPresent(PathVariable.class);
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.hasParameterAnnotation(PathVariable.class);
     }
 
     /**
@@ -40,8 +40,8 @@ public class PathVariableMethodArgumentResolver extends AbstractMethodArgumentRe
      * @return 매핑된 값, 없으면 {@code null} 반환
      */
     @Override
-    protected String extractValue(Parameter parameter, NativeWebRequest webRequest) {
-        String paramName = parameter.getAnnotation(PathVariable.class).value();
+    protected String extractValue(MethodParameter parameter, NativeWebRequest webRequest) {
+        String paramName = parameter.getParameterAnnotation(PathVariable.class).value();
         HashMap<String, String> map = (HashMap<String, String>) webRequest.getAttribute("uriTemplateVariables", SCOPE_REQUEST);
 
         return map.get(paramName);
@@ -51,8 +51,8 @@ public class PathVariableMethodArgumentResolver extends AbstractMethodArgumentRe
      * {@link PathVariable} 어노테이션 정보를 기반으로 {@link NamedValueInfo}를 생성.
      */
     @Override
-    protected NamedValueInfo createNamedValueInfo(Parameter parameter) {
-        PathVariable ann = parameter.getAnnotation(PathVariable.class);
+    protected NamedValueInfo createNamedValueInfo(MethodParameter parameter) {
+        PathVariable ann = parameter.getParameterAnnotation(PathVariable.class);
 
         return new NamedValueInfo(ann.value(), RequiredConstants.MANDATORY, ValueConstants.DEFAULT_NONE);
     }

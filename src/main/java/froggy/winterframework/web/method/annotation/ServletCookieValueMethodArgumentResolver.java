@@ -1,9 +1,9 @@
 package froggy.winterframework.web.method.annotation;
 
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.CookieValue;
 import froggy.winterframework.web.context.request.NativeWebRequest;
-import java.lang.reflect.Parameter;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 
@@ -14,12 +14,12 @@ public class ServletCookieValueMethodArgumentResolver extends AbstractMethodArgu
     }
 
     @Override
-    public boolean supportsParameter(Parameter parameter) {
-        return parameter.isAnnotationPresent(CookieValue.class);
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.hasParameterAnnotation(CookieValue.class);
     }
 
     @Override
-    protected String extractValue(Parameter parameter, NativeWebRequest webRequest) {
+    protected String extractValue(MethodParameter parameter, NativeWebRequest webRequest) {
         HttpServletRequest servletRequest = webRequest.getNativeRequest(HttpServletRequest.class);
 
         Cookie[] cookies = servletRequest.getCookies();
@@ -27,7 +27,7 @@ public class ServletCookieValueMethodArgumentResolver extends AbstractMethodArgu
             return null;
         }
 
-        String paramName = parameter.getAnnotation(CookieValue.class).value();
+        String paramName = parameter.getParameterAnnotation(CookieValue.class).value();
         for (Cookie cookie : cookies) {
             if (cookie.getName().equals(paramName)) {
                 return cookie.getValue();
@@ -38,8 +38,8 @@ public class ServletCookieValueMethodArgumentResolver extends AbstractMethodArgu
     }
 
     @Override
-    protected NamedValueInfo createNamedValueInfo(Parameter parameter) {
-        CookieValue ann = parameter.getAnnotation(CookieValue.class);
+    protected NamedValueInfo createNamedValueInfo(MethodParameter parameter) {
+        CookieValue ann = parameter.getParameterAnnotation(CookieValue.class);
         return new NamedValueInfo(ann.value(), ann.required(), ann.defaultValue());
     }
 

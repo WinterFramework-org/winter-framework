@@ -1,9 +1,9 @@
 package froggy.winterframework.web.method.annotation;
 
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.RequestHeader;
 import froggy.winterframework.web.context.request.NativeWebRequest;
-import java.lang.reflect.Parameter;
 
 /**
  * HTTP 요청의 Header 값을 추출하여 적절한 타입으로 변환하는 Resolver.
@@ -24,8 +24,8 @@ public class RequestHeaderMethodArgumentResolver extends AbstractMethodArgumentR
      * @return 지원하면 {@code true}, 그렇지 않으면 {@code false}
      */
     @Override
-    public boolean supportsParameter(Parameter parameter) {
-        return parameter.isAnnotationPresent(RequestHeader.class);
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.hasParameterAnnotation(RequestHeader.class);
     }
 
     /**
@@ -36,8 +36,8 @@ public class RequestHeaderMethodArgumentResolver extends AbstractMethodArgumentR
      * @return HTTP Request Header에서 추출한 헤더 값 (없을 경우 {@code null} 반환)
      */
     @Override
-    protected String extractValue(Parameter parameter, NativeWebRequest webRequest) {
-        String name = parameter.getAnnotation(RequestHeader.class).value();
+    protected String extractValue(MethodParameter parameter, NativeWebRequest webRequest) {
+        String name = parameter.getParameterAnnotation(RequestHeader.class).value();
 
         return webRequest.getHeader(name);
     }
@@ -46,8 +46,8 @@ public class RequestHeaderMethodArgumentResolver extends AbstractMethodArgumentR
      * {@link RequestHeader} 어노테이션 정보를 기반으로 {@link NamedValueInfo}를 생성.
      */
     @Override
-    protected NamedValueInfo createNamedValueInfo(Parameter parameter) {
-        RequestHeader ann = parameter.getAnnotation(RequestHeader.class);
+    protected NamedValueInfo createNamedValueInfo(MethodParameter parameter) {
+        RequestHeader ann = parameter.getParameterAnnotation(RequestHeader.class);
 
         return new NamedValueInfo(ann.value(), ann.required(), ann.defaultValue());
     }

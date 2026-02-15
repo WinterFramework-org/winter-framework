@@ -1,9 +1,9 @@
 package froggy.winterframework.web.method.annotation;
 
+import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.utils.convert.TypeConverter;
 import froggy.winterframework.web.bind.annotation.RequestParam;
 import froggy.winterframework.web.context.request.NativeWebRequest;
-import java.lang.reflect.Parameter;
 
 /**
  * {@link RequestParam} 어노테이션을 처리하는 Argument Resolver.
@@ -16,13 +16,13 @@ public class RequestParamMethodArgumentResolver extends AbstractMethodArgumentRe
     }
 
     @Override
-    public boolean supportsParameter(Parameter parameter) {
-        return parameter.isAnnotationPresent(RequestParam.class);
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.hasParameterAnnotation(RequestParam.class);
     }
 
     @Override
-    protected String extractValue(Parameter parameter, NativeWebRequest webRequest) {
-        String paramName = parameter.getAnnotation(RequestParam.class).value();
+    protected String extractValue(MethodParameter parameter, NativeWebRequest webRequest) {
+        String paramName = parameter.getParameterAnnotation(RequestParam.class).value();
         return webRequest.getParameter(paramName);
     }
 
@@ -30,8 +30,8 @@ public class RequestParamMethodArgumentResolver extends AbstractMethodArgumentRe
      * {@link RequestParam} 어노테이션 정보를 기반으로 {@link NamedValueInfo}를 생성.
      */
     @Override
-    protected NamedValueInfo createNamedValueInfo(Parameter parameter) {
-        RequestParam ann = parameter.getAnnotation(RequestParam.class);
+    protected NamedValueInfo createNamedValueInfo(MethodParameter parameter) {
+        RequestParam ann = parameter.getParameterAnnotation(RequestParam.class);
 
         return new NamedValueInfo(ann.value(), ann.required(), ann.defaultValue());
     }
