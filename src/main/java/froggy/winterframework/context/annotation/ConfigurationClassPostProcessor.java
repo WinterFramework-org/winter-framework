@@ -1,6 +1,7 @@
 package froggy.winterframework.context.annotation;
 
 import froggy.winterframework.beans.factory.config.BeanDefinition;
+import froggy.winterframework.beans.factory.config.ScopeType;
 import froggy.winterframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.stereotype.Component;
@@ -17,6 +18,7 @@ import java.util.Set;
  * - @Component 중첩된 클래스를 스캔해 Bean으로 관리
  */
 public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPostProcessor {
+    private final AnnotationScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
 
     @Override
     public void postProcessBeanDefinitionRegistry(BeanFactory beanFactory) {
@@ -68,8 +70,10 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
         String configBeanName = WinterUtils.resolveSimpleBeanName(configClass);
         for (Method method : configClass.getMethods()) {
             if (WinterUtils.hasAnnotation(method, Bean.class)) {
+                ScopeType scopeType = scopeMetadataResolver.resolveScopeMetadata(method);
                 BeanDefinition bd = new BeanDefinition(
                     method.getReturnType(),
+                    scopeType,
                     configBeanName,
                     method.getName()
                 );
@@ -89,7 +93,10 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
         for (Class<?> nestedClass : configClass.getDeclaredClasses()) {
             if (WinterUtils.hasAnnotation(nestedClass, Component.class)) {
-                BeanDefinition bd = new BeanDefinition(nestedClass);
+                BeanDefinition bd = new BeanDefinition(
+                    nestedClass,
+                    scopeMetadataResolver.resolveScopeMetadata(nestedClass)
+                );
 
                 result.put(WinterUtils.resolveSimpleBeanName(nestedClass), bd);
             }

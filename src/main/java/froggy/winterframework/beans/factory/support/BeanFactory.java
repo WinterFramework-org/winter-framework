@@ -244,7 +244,9 @@ public class BeanFactory extends SingletonBeanRegistry {
     private Object doCreateBean(String beanName, BeanDefinition beanDefinition) throws RuntimeException {
         Object beanInstance = createBeanInstance(beanName, beanDefinition);
 
-        registerSingleton(beanName, beanInstance);
+        if (beanDefinition.isSingleton()) {
+            registerSingleton(beanName, beanInstance);
+        }
 
         return beanInstance;
     }
@@ -498,7 +500,9 @@ public class BeanFactory extends SingletonBeanRegistry {
      */
     public void preInstantiateSingletons() {
         for (String beanName : getBeanDefinitionNames()) {
-            getBean(beanName);
+            if (getBeanDefinition(beanName).isSingleton()) {
+                getBean(beanName);
+            }
         }
     }
 

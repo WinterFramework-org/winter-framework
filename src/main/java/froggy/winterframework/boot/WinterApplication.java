@@ -9,6 +9,7 @@ import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.boot.web.embedded.jetty.jettyWebServer;
 import froggy.winterframework.boot.web.server.WebServer;
 import froggy.winterframework.context.ApplicationContext;
+import froggy.winterframework.context.annotation.AnnotationScopeMetadataResolver;
 import froggy.winterframework.context.annotation.ConfigurationClassPostProcessor;
 import froggy.winterframework.core.PropertySource;
 import froggy.winterframework.core.env.Environment;
@@ -23,8 +24,9 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -36,6 +38,7 @@ public class WinterApplication {
      * 애플리케이션 진입점 클래스.
      */
     private Class<?> mainApplicationClass;
+    private final AnnotationScopeMetadataResolver scopeMetadataResolver = new AnnotationScopeMetadataResolver();
 
     public WinterApplication(Class<?> mainApplicationClass) {
         this.mainApplicationClass = mainApplicationClass;
@@ -170,9 +173,9 @@ public class WinterApplication {
     public void registerBeanDefinition(BeanFactory beanFactory) {
         Set<Class<?>> classNames = scanBeanCandidates();
 
-        Set<BeanDefinition> beanDefinitions = createBeanDefinitions(classNames);
-        for (BeanDefinition beanDefinition : beanDefinitions) {
-            beanFactory.registerBeanDefinition(beanDefinition.getBeanClass());
+        Map<String, BeanDefinition> beanDefinitions = createBeanDefinitions(classNames);
+        for (Map.Entry<String, BeanDefinition> entry : beanDefinitions.entrySet()) {
+            beanFactory.registerBeanDefinition(entry.getKey(), entry.getValue());
         }
     }
 
@@ -258,14 +261,19 @@ public class WinterApplication {
      * 각 클래스의 BeanDefinition을 생성하여 반환한다.
      *
      * @param candidateClasses Bean 후보 클래스들의 Set
-     * @return BeanDefinition Set
+     * @return BeanDefinition Map (beanName -> beanDefinition)
      */
-    private Set<BeanDefinition> createBeanDefinitions(Set<Class<?>> candidateClasses) {
-        Set<BeanDefinition> beanDefinitions = new LinkedHashSet<>();
+    private Map<String, BeanDefinition> createBeanDefinitions(Set<Class<?>> candidateClasses) {
+        Map<String, BeanDefinition> beanDefinitions = new LinkedHashMap<>();
 
         for (Class<?> clazz : candidateClasses) {
             if (hasAnnotation(clazz, Component.class)) {
-                beanDefinitions.add(new BeanDefinition(clazz));
+                String beanName = WinterUtils.resolveSimpleBeanName(clazz);
+                BeanDefinition beanDefinition = new BeanDefinition(
+                    clazz,
+                    scopeMetadataResolver.resolveScopeMetadata(clazz)
+                );
+                beanDefinitions.put(beanName, beanDefinition);
             }
         }
 
