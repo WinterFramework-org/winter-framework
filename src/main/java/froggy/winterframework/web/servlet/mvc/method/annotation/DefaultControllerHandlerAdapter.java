@@ -4,6 +4,9 @@ import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.stereotype.Controller;
 import froggy.winterframework.utils.DefaultTypeConverter;
 import froggy.winterframework.utils.convert.TypeConverter;
+import froggy.winterframework.validation.BindingResult;
+import froggy.winterframework.validation.MethodArgumentNotValidException;
+import froggy.winterframework.validation.Validator;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.context.request.ServletWebRequest;
@@ -25,16 +28,19 @@ import java.util.LinkedList;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 
 /**
  * @Controller 애노테이션을 적용한 핸들러를 실행하는 기본 핸들러 어댑터.
  */
 public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
+    private final Validator validator;
     private final List<HandlerMethodArgumentResolver> resolvers = new LinkedList<>();
     private final List<HandlerMethodReturnValueHandler> returnValueHandlers = new LinkedList<>();
 
-    public DefaultControllerHandlerAdapter() {
+    public DefaultControllerHandlerAdapter(Validator validator) {
+        this.validator = validator;
         initResolver();
         initReturnValueHandlers();
     }
@@ -136,9 +142,47 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
     )
         throws Exception {
         Object[] args = new Object[parameters.length];
+        BindingResult pendingBindingResult = null;
+        int pendingValidatedIndex = -1;
 
         for (int i = 0; i < parameters.length; i++) {
-            args[i] = resolveArgumentForParameter(parameters[i], webRequest, mavContainer);
+            MethodParameter parameter = parameters[i];
+
+            if (isBindingResultParameter(parameter)) {
+                if (pendingBindingResult == null || pendingValidatedIndex != i - 1) {
+                    throw new IllegalStateException(
+                        "BindingResult parameter must follow immediately after a @Valid parameter. "
+                            + "Method: " + parameter.getMethod().getDeclaringClass().getSimpleName()
+                            + "#" + parameter.getMethod().getName()
+                    );
+                }
+
+                args[i] = pendingBindingResult;
+                pendingBindingResult = null;
+                pendingValidatedIndex = -1;
+                continue;
+            }
+
+            Object arg = resolveArgumentForParameter(parameter, webRequest, mavContainer);
+            args[i] = arg;
+
+            if (!shouldValidate(parameter)) {
+                pendingBindingResult = null;
+                pendingValidatedIndex = -1;
+                continue;
+            }
+
+            BindingResult bindingResult = new BindingResult(arg, parameter.getParameterName());
+            if (arg != null) {
+                validator.validate(arg, bindingResult);
+            }
+
+            pendingBindingResult = bindingResult;
+            pendingValidatedIndex = i;
+
+            if (bindingResult.hasErrors() && !hasBindingResultParameter(parameters, i)) {
+                throw new MethodArgumentNotValidException(parameter, bindingResult);
+            }
         }
 
         return args;
@@ -183,5 +227,21 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
                 throw new RuntimeException(ex);
             }
         }
+    }
+
+    private boolean shouldValidate(MethodParameter parameter) {
+        return parameter.hasParameterAnnotation(Valid.class);
+    }
+
+    private boolean isBindingResultParameter(MethodParameter parameter) {
+        return BindingResult.class.isAssignableFrom(parameter.getParameterType());
+    }
+
+    private boolean hasBindingResultParameter(MethodParameter[] parameters, int index) {
+        int nextIndex = index + 1;
+        if (nextIndex >= parameters.length) {
+            return false;
+        }
+        return isBindingResultParameter(parameters[nextIndex]);
     }
 }

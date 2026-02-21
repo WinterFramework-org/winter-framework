@@ -7,6 +7,7 @@ import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.servlet.HandlerAdapter;
 import froggy.winterframework.web.servlet.MethodNotAllowedException;
 import froggy.winterframework.web.servlet.NoHandlerFoundException;
+import froggy.winterframework.validation.MethodArgumentNotValidException;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import froggy.winterframework.web.servlet.mvc.method.annotation.DefaultControllerHandlerAdapter;
 import java.io.IOException;
@@ -123,6 +124,9 @@ public class DispatcherServlet extends HttpServlet {
         HandlerAdapter handlerAdapter = getHandlerAdapter(handlerMethod);
         try {
             modelAndView = handlerAdapter.handle(request, response, handlerMethod);
+        } catch (MethodArgumentNotValidException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Validation failed");
+            return;
         } catch (Exception e) {
             if (e instanceof RuntimeException) {
                 throw (RuntimeException) e;

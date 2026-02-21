@@ -3,6 +3,7 @@ package froggy.winterframework.boot.web.servlet.config.annotation;
 import froggy.winterframework.beans.factory.annotation.Autowired;
 import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.context.annotation.Bean;
+import froggy.winterframework.validation.LocalValidatorFactoryBean;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
@@ -46,7 +47,14 @@ public class WebMvcConfigurationSupport {
     }
 
     protected DefaultControllerHandlerAdapter createDefaultControllerHandlerAdapter() {
-        return new DefaultControllerHandlerAdapter();
+        LocalValidatorFactoryBean validatorFactoryBean = context.getBeanFactory()
+            .getBean("localValidatorFactoryBean", LocalValidatorFactoryBean.class);
+        return new DefaultControllerHandlerAdapter(validatorFactoryBean);
+    }
+
+    @Bean
+    public LocalValidatorFactoryBean localValidatorFactoryBean() {
+        return new LocalValidatorFactoryBean(context.getBeanFactory());
     }
 
     public List<HandlerMethodArgumentResolver> getArgumentResolvers() {
