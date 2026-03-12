@@ -215,17 +215,17 @@ public class DispatcherServlet extends HttpServlet {
             return true;
         }
 
-        if (accept.startsWith("text/css")) {
+        if (accept != null && accept.startsWith("text/css")) {
             response.setContentType("text/css");
             return true;
         }
 
-        if (accept.startsWith("/css")) {
+        if (accept != null && accept.startsWith("/css")) {
             response.setContentType("text/css");
             return true;
         }
 
-        if (accept.startsWith("image/")) {
+        if (accept != null && accept.startsWith("image/")) {
             response.setContentType("image/png");
             return true;
         }
