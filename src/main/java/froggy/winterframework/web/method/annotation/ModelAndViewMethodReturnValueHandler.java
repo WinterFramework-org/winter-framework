@@ -18,7 +18,7 @@ public class ModelAndViewMethodReturnValueHandler implements HandlerMethodReturn
      */
     @Override
     public boolean supportsReturnType(HandlerMethod handlerMethod) {
-        return handlerMethod.getReturnType().isAssignableFrom(ModelAndView.class);
+        return ModelAndView.class.isAssignableFrom(handlerMethod.getReturnType());
     }
 
     /**
