@@ -4,12 +4,12 @@ import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.context.ApplicationContext;
 import froggy.winterframework.utils.WinterUtils;
 import froggy.winterframework.web.method.HandlerMethod;
+import froggy.winterframework.web.servlet.ExceptionResolver;
 import froggy.winterframework.web.servlet.HandlerAdapter;
-import froggy.winterframework.web.servlet.MethodNotAllowedException;
-import froggy.winterframework.web.servlet.NoHandlerFoundException;
-import froggy.winterframework.validation.MethodArgumentNotValidException;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import froggy.winterframework.web.servlet.mvc.method.annotation.DefaultControllerHandlerAdapter;
+import froggy.winterframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver;
+import froggy.winterframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,21 +33,20 @@ public class DispatcherServlet extends HttpServlet {
     private ApplicationContext context;
     private RequestMappingHandlerMapping requestMappingHandlerMapping;
     private List<HandlerAdapter> handlerAdapters = new ArrayList<>();
+    private List<ExceptionResolver> exceptionResolvers = new ArrayList<>();
 
     public DispatcherServlet(ApplicationContext context) {
         this.context = context;
     }
 
     /**
-     * URL과 Handler(Controller) 메소드를 매핑하는 RequestMappingHandlerMapping을 초기화
-     *
-     * <p>DispatcherServlet 객체가 생성되면,
-     * 등록된 모든 Handler(Controller) Bean을 스캔하여 URL과 매핑 정보를 설정
+     * 기본 전략 객체를 초기화한다.
      */
     @Override
     public void init() {
         initHandlerAdapters();
         initHandlerMapping();
+        initExceptionResolvers();
     }
 
     private void initHandlerAdapters() {
@@ -81,12 +80,21 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     /**
-     * HTTP 요청을 처리하는 메소드 (FrontController 역할)
+     * 예외를 HTTP 응답으로 변환할 기본 Resolver를 초기화한다.
+     */
+    private void initExceptionResolvers() {
+        exceptionResolvers.add(new ExceptionHandlerExceptionResolver());
+        exceptionResolvers.add(new DefaultHandlerExceptionResolver());
+    }
+
+    /**
+     * HTTP 요청을 처리하는 메소드 (Front Controller 역할)
      *
      * <ol>
      *   <li>정적 자원 요청은 서블릿 컨테이너의 DefaultHandler에 위임</li>
      *   <li>요청 URI에 매핑된 Handler(Controller) 메소드를 실행</li>
-     *   <li>실행 결과({@link ModelAndView})를 request 속성에 저장하고, View로 전달</li>
+     *   <li>예외 발생 시 ExceptionResolver를 통해 대체 결과를 생성</li>
+     *   <li>최종 ModelAndView를 기반으로 응답을 완료</li>
      * </ol>
      *
      * @param request  HttpServletRequest 객체
@@ -98,7 +106,7 @@ public class DispatcherServlet extends HttpServlet {
     protected void service(HttpServletRequest request, HttpServletResponse response)
         throws ServletException, IOException {
 
-        // 정적 자원 처리: 요청이 정적 자원에 해당하면 DefaultHandler로 위임
+        // 정적 자원 요청은 DefaultHandler로 위임한다.
         if (isStaticResource(request, response)) {
             RequestDispatcher dispatcher = request.getServletContext().getNamedDispatcher("default");
             if (dispatcher != null) {
@@ -107,46 +115,48 @@ public class DispatcherServlet extends HttpServlet {
             }
         }
 
-        // 요청 URI에 매핑되는 Handler(Controller) 메소드 객체 찾기
-        HandlerMethod handlerMethod;
+        ModelAndView modelAndView = null;
+        Exception dispatchException = null;
+        HandlerMethod handlerMethod = null;
         try {
             handlerMethod = requestMappingHandlerMapping.getHandlerMethod(request);
-        } catch (NoHandlerFoundException e) {
-            response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            return;
-        } catch (MethodNotAllowedException e) {
-            response.addHeader("Allow", e.getAllowHeader());
-            response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-            return;
-        }
-
-        ModelAndView modelAndView = null;
-        HandlerAdapter handlerAdapter = getHandlerAdapter(handlerMethod);
-        try {
+            HandlerAdapter handlerAdapter = getHandlerAdapter(handlerMethod);
             modelAndView = handlerAdapter.handle(request, response, handlerMethod);
-        } catch (MethodArgumentNotValidException e) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Validation failed");
-            return;
-        } catch (Exception e) {
-            if (e instanceof RuntimeException) {
-                throw (RuntimeException) e;
-            }
-            throw new ServletException("Handler execution failed", e);
+        } catch (Exception exception) {
+            // Handler 실행 예외는 ExceptionResolver 체인으로 넘긴다.
+            dispatchException = exception;
         }
 
-        processDispatchResult(request, response, modelAndView);
+        processDispatchResult(request, response, handlerMethod, modelAndView, dispatchException);
     }
 
     /**
-     * 컨트롤러의 처리 결과(ModelAndView)를 기반으로,
-     * View 렌더링 전 필요한 후처리 및 렌더링을 수행한다.
+     * 핸들러 실행 결과 또는 예외 처리 결과를 기준으로 응답을 마무리한다.
      *
-     * @param request       HttpServletRequest 객체
-     * @param response      HttpServletResponse 객체
-     * @param modelAndView  핸들러 실행 결과(Model, View 정보를 포함)
+     * @param request           HttpServletRequest 객체
+     * @param response          HttpServletResponse 객체
+     * @param handler           요청을 처리한 핸들러 객체
+     * @param modelAndView      핸들러 실행 결과(Model, View 정보를 포함)
+     * @param dispatchException dispatch 중 발생한 예외
+     * @throws ServletException 서블릿 예외 발생 시
+     * @throws IOException      입출력 예외 발생 시
      */
-    private void processDispatchResult(HttpServletRequest request, HttpServletResponse response, ModelAndView modelAndView)
+    private void processDispatchResult(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        Object handler,
+        ModelAndView modelAndView,
+        Exception dispatchException
+    )
         throws ServletException, IOException {
+        if (dispatchException != null) {
+            modelAndView = processHandlerException(request, response, handler, dispatchException);
+        }
+
+        if (modelAndView == null) {
+            throw new IllegalStateException("handlerAdapter must not return null ModelAndView");
+        }
+
         if (modelAndView.isRequestHandled()) {
             return;
         }
@@ -155,18 +165,63 @@ public class DispatcherServlet extends HttpServlet {
             throw new IllegalStateException("view must not be null");
         }
 
-        //  ModelAndView 데이터를 request 속성에 추가
         bindProcessResult(request, modelAndView);
-
-        // view 렌더링
         render(request, response, modelAndView);
     }
 
     /**
-     * 핸들러를 통해 처리된 결과를 View 렌더링 전에 HttpServletRequest에 바인딩한다.
+     * 핸들러 실행 중 발생한 예외를 처리한다.
      *
-     * @param request
-     * @param modelAndView
+     * <p>등록된 ExceptionResolver를 순차적으로 호출하여 예외를 처리하고,
+     * 처리 결과를 ModelAndView로 반환한다.
+     * 예외를 처리하지 못하면 원본 예외를 다시 던진다.
+     *
+     * @param request   현재 HTTP 요청
+     * @param response  현재 HTTP 응답
+     * @param handler   예외가 발생한 핸들러 객체
+     * @param exception 발생한 예외
+     * @return 예외 처리 결과 ModelAndView
+     * @throws ServletException 서블릿 예외 발생 시
+     * @throws IOException      입출력 예외 발생 시
+     */
+    private ModelAndView processHandlerException(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        Object handler,
+        Exception exception
+    ) throws ServletException, IOException {
+
+        if (!response.isCommitted()) {
+            // 예외를 처리하지 못하면 다음 resolver로 넘기고, 먼저 처리한 resolver의 결과를 반환한다.
+            for (ExceptionResolver resolver : exceptionResolvers) {
+                ModelAndView resolvedModelAndView =
+                    resolver.resolveException(request, response, handler, exception);
+                if (resolvedModelAndView != null) {
+                    return resolvedModelAndView;
+                }
+            }
+        }
+
+        if (exception instanceof ServletException) {
+            throw (ServletException) exception;
+        }
+
+        if (exception instanceof IOException) {
+            throw (IOException) exception;
+        }
+
+        if (exception instanceof RuntimeException) {
+            throw (RuntimeException) exception;
+        }
+
+        throw new ServletException("Handler execution failed", exception);
+    }
+
+    /**
+     * 핸들러 처리 결과(Model)를 View 렌더링 전에 HttpServletRequest 속성에 바인딩한다.
+     *
+     * @param request      HttpServletRequest 객체
+     * @param modelAndView 바인딩할 ModelAndView
      */
     private void bindProcessResult(HttpServletRequest request, ModelAndView modelAndView) {
         Map<String, Object> model = modelAndView.getModel();
@@ -174,7 +229,7 @@ public class DispatcherServlet extends HttpServlet {
             return;
         }
 
-        for (Map.Entry<String, Object> entry: model.entrySet()) {
+        for (Map.Entry<String, Object> entry : model.entrySet()) {
             request.setAttribute(entry.getKey(), entry.getValue());
         }
     }
@@ -195,11 +250,7 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     /**
-     * 정적 리소스 요청을 확인하는 메소드
-     *
-     * <p>요청 URI 및 Accept 헤더 정보를 기반으로 정적 자원(HTML, JSP, CSS, 이미지 등)에 해당하는지 확인하고,
-     * 응답의 MIME 타입을 설정
-     *
+     * 정적 리소스 요청 여부를 확인하고 필요한 MIME 타입을 설정한다.
      *
      * @param request  HttpServletRequest 객체
      * @param response HttpServletResponse 객체
@@ -234,7 +285,7 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     /**
-     * 주어진 Handler(Controller)를 처리할 수 있는 {@link HandlerAdapter}를 찾는다
+     * 주어진 Handler를 처리할 수 있는 HandlerAdapter를 찾는다.
      *
      * @param handler 요청을 처리할 핸들러 객체
      * @return HandlerAdapter
