@@ -1,4 +1,4 @@
-﻿package froggy.winterframework.web.servlet.mvc.method.annotation;
+package froggy.winterframework.web.servlet.mvc.method.annotation;
 
 import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.web.ModelAndView;
@@ -38,6 +38,14 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
     private void initReturnValueHandlers() {
         returnValueHandlers.add(new ModelAndViewMethodReturnValueHandler());
         returnValueHandlers.add(new ResponseBodyMethodReturnValueHandler());
+    }
+
+    public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> returnValueHandlers) {
+        if (returnValueHandlers == null || returnValueHandlers.isEmpty()) {
+            return;
+        }
+
+        this.returnValueHandlers.addAll(returnValueHandlers);
     }
 
     /**

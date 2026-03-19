@@ -8,10 +8,9 @@ import froggy.winterframework.web.servlet.ExceptionResolver;
 import froggy.winterframework.web.servlet.HandlerAdapter;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import froggy.winterframework.web.servlet.mvc.method.annotation.DefaultControllerHandlerAdapter;
-import froggy.winterframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver;
-import froggy.winterframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.servlet.RequestDispatcher;
@@ -29,6 +28,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 @WebServlet(name = "DispatcherServlet", value = "/")
 public class DispatcherServlet extends HttpServlet {
+
+    private static final String EXCEPTION_RESOLVER_BEAN_NAME = "exceptionResolverComposite";
 
     private ApplicationContext context;
     private RequestMappingHandlerMapping requestMappingHandlerMapping;
@@ -80,11 +81,14 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     /**
-     * 예외를 HTTP 응답으로 변환할 기본 Resolver를 초기화한다.
+     * 예외 처리를 담당할 ExceptionResolver를 초기화한다.
      */
     private void initExceptionResolvers() {
-        exceptionResolvers.add(new ExceptionHandlerExceptionResolver());
-        exceptionResolvers.add(new DefaultHandlerExceptionResolver());
+        BeanFactory beanFactory = context.getBeanFactory();
+        ExceptionResolver compositeResolver = beanFactory.getBean(
+            EXCEPTION_RESOLVER_BEAN_NAME, ExceptionResolver.class
+        );
+        exceptionResolvers = Collections.singletonList(compositeResolver);
     }
 
     /**

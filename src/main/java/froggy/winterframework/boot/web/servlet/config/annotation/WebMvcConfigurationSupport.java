@@ -6,8 +6,12 @@ import froggy.winterframework.context.annotation.Bean;
 import froggy.winterframework.validation.LocalValidatorFactoryBean;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
+import froggy.winterframework.web.servlet.ExceptionResolver;
+import froggy.winterframework.web.servlet.handler.HandlerExceptionResolverComposite;
 import froggy.winterframework.web.servlet.handler.RequestMappingHandlerMapping;
 import froggy.winterframework.web.servlet.mvc.method.annotation.DefaultControllerHandlerAdapter;
+import froggy.winterframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver;
+import froggy.winterframework.web.servlet.mvc.support.DefaultHandlerExceptionResolver;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -50,6 +54,47 @@ public class WebMvcConfigurationSupport {
         LocalValidatorFactoryBean validatorFactoryBean = context.getBeanFactory()
             .getBean("localValidatorFactoryBean", LocalValidatorFactoryBean.class);
         return new DefaultControllerHandlerAdapter(validatorFactoryBean);
+    }
+
+    protected ExceptionHandlerExceptionResolver exceptionHandlerExceptionResolver() {
+        ExceptionHandlerExceptionResolver resolver = createExceptionHandlerExceptionResolver();
+        resolver.addReturnValueHandlers(getReturnValueHandlers());
+        return resolver;
+    }
+
+    protected ExceptionHandlerExceptionResolver createExceptionHandlerExceptionResolver() {
+        return new ExceptionHandlerExceptionResolver();
+    }
+
+    protected DefaultHandlerExceptionResolver defaultHandlerExceptionResolver() {
+        return createDefaultHandlerExceptionResolver();
+    }
+
+    protected DefaultHandlerExceptionResolver createDefaultHandlerExceptionResolver() {
+        return new DefaultHandlerExceptionResolver();
+    }
+
+    @Bean
+    public ExceptionResolver exceptionResolverComposite() {
+        HandlerExceptionResolverComposite composite = new HandlerExceptionResolverComposite();
+        List<ExceptionResolver> resolvers = new LinkedList<>();
+
+        configureHandlerExceptionResolvers(resolvers);
+
+        if (resolvers.isEmpty()) {
+            addDefaultHandlerExceptionResolvers(resolvers);
+        }
+
+        composite.setExceptionResolvers(resolvers);
+        return composite;
+    }
+
+    protected void addDefaultHandlerExceptionResolvers(List<ExceptionResolver> resolvers) {
+        resolvers.add(exceptionHandlerExceptionResolver());
+        resolvers.add(defaultHandlerExceptionResolver());
+    }
+
+    protected void configureHandlerExceptionResolvers(List<ExceptionResolver> resolvers) {
     }
 
     @Bean
