@@ -58,6 +58,7 @@ public class WebMvcConfigurationSupport {
 
     protected ExceptionHandlerExceptionResolver exceptionHandlerExceptionResolver() {
         ExceptionHandlerExceptionResolver resolver = createExceptionHandlerExceptionResolver();
+        resolver.addArgumentResolvers(getArgumentResolvers());
         resolver.addReturnValueHandlers(getReturnValueHandlers());
         return resolver;
     }

@@ -8,6 +8,7 @@ import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.annotation.ExceptionHandlerMethodResolver;
 import froggy.winterframework.web.method.annotation.ModelAndViewMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.ResponseBodyMethodReturnValueHandler;
+import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
 import froggy.winterframework.web.servlet.ExceptionResolver;
 import java.lang.reflect.InvocationTargetException;
@@ -28,6 +29,9 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
     private final ConcurrentHashMap<Class<?>, ExceptionHandlerMethodResolver> exceptionHandlerCache =
         new ConcurrentHashMap<Class<?>, ExceptionHandlerMethodResolver>();
 
+    private final List<HandlerMethodArgumentResolver> argumentResolvers
+        = new ArrayList<HandlerMethodArgumentResolver>();
+
     private final List<HandlerMethodReturnValueHandler> returnValueHandlers =
         new ArrayList<HandlerMethodReturnValueHandler>();
 
@@ -38,6 +42,14 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
     private void initReturnValueHandlers() {
         returnValueHandlers.add(new ModelAndViewMethodReturnValueHandler());
         returnValueHandlers.add(new ResponseBodyMethodReturnValueHandler());
+    }
+
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers) {
+        if (argumentResolvers == null) {
+            return;
+        }
+
+        this.argumentResolvers.addAll(argumentResolvers);
     }
 
     public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> returnValueHandlers) {
@@ -85,6 +97,9 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
             return handleReturnValue(
                 handlerMethod, exceptionHandlerMethod, returnValue, webRequest, mavContainer);
         } catch (Exception invocationException) {
+            System.err.println("Failure in @ExceptionHandler " + methodSignature(exceptionHandlerMethod)
+                + " - " + invocationException.getMessage());
+
             // 예외 처리 메서드 호출이 실패하면 다음 resolver로 넘긴다.
             return null;
         }
@@ -190,6 +205,18 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
 
         if (HandlerMethod.class.isAssignableFrom(parameterType)) {
             return handlerMethod;
+        }
+
+        for (HandlerMethodArgumentResolver resolver : argumentResolvers) {
+            if (resolver.supportsParameter(parameter)) {
+                try {
+                    return resolver.resolveArgument(parameter, webRequest, mavContainer);
+                } catch (Exception ex) {
+                    throw new IllegalStateException(
+                        "Failed to resolve argument of type [" + parameter.getParameterType().getName() + "] "
+                            + "in @ExceptionHandler method: " + methodSignature(parameter.getMethod()), ex);
+                }
+            }
         }
 
         throw new IllegalStateException(
