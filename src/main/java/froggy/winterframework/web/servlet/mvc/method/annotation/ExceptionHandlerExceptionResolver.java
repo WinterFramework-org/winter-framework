@@ -8,12 +8,14 @@ import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.annotation.ExceptionHandlerMethodResolver;
 import froggy.winterframework.web.method.annotation.ModelAndViewMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.ResponseBodyMethodReturnValueHandler;
+import froggy.winterframework.web.method.annotation.ServletRequestMethodArgumentResolver;
+import froggy.winterframework.web.method.annotation.ServletResponseMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
 import froggy.winterframework.web.servlet.ExceptionResolver;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.servlet.http.HttpServletRequest;
@@ -26,38 +28,35 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
 
-    private final ConcurrentHashMap<Class<?>, ExceptionHandlerMethodResolver> exceptionHandlerCache =
-        new ConcurrentHashMap<Class<?>, ExceptionHandlerMethodResolver>();
+    private final ConcurrentHashMap<Class<?>, ExceptionHandlerMethodResolver> exceptionHandlerCache
+        = new ConcurrentHashMap<>();
 
     private final List<HandlerMethodArgumentResolver> argumentResolvers
-        = new ArrayList<HandlerMethodArgumentResolver>();
+        = new LinkedList<>();
 
-    private final List<HandlerMethodReturnValueHandler> returnValueHandlers =
-        new ArrayList<HandlerMethodReturnValueHandler>();
+    private final List<HandlerMethodReturnValueHandler> returnValueHandlers
+        = new LinkedList<>();
 
-    public ExceptionHandlerExceptionResolver() {
-        initReturnValueHandlers();
+    public void initArgumentResolvers() {
+        argumentResolvers.add(new ServletRequestMethodArgumentResolver());
+        argumentResolvers.add(new ServletResponseMethodArgumentResolver());
     }
 
-    private void initReturnValueHandlers() {
+    public void initReturnValueHandlers() {
         returnValueHandlers.add(new ModelAndViewMethodReturnValueHandler());
         returnValueHandlers.add(new ResponseBodyMethodReturnValueHandler());
     }
 
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers) {
-        if (argumentResolvers == null) {
-            return;
+        if (argumentResolvers != null) {
+            this.argumentResolvers.addAll(argumentResolvers);
         }
-
-        this.argumentResolvers.addAll(argumentResolvers);
     }
 
     public void addReturnValueHandlers(List<HandlerMethodReturnValueHandler> returnValueHandlers) {
-        if (returnValueHandlers == null || returnValueHandlers.isEmpty()) {
-            return;
+        if (returnValueHandlers != null) {
+            this.returnValueHandlers.addAll(returnValueHandlers);
         }
-
-        this.returnValueHandlers.addAll(returnValueHandlers);
     }
 
     /**
@@ -187,20 +186,6 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
                 break;
             }
             cause = cause.getCause();
-        }
-
-        if (HttpServletRequest.class.isAssignableFrom(parameterType)) {
-            return webRequest.getNativeRequest(HttpServletRequest.class);
-        }
-
-        if (HttpServletResponse.class.isAssignableFrom(parameterType)) {
-            // 응답 객체 주입 시 직접 응답 처리로 표시한다.
-            mavContainer.setRequestHandled(true);
-            return webRequest.getNativeResponse(HttpServletResponse.class);
-        }
-
-        if (NativeWebRequest.class.isAssignableFrom(parameterType)) {
-            return webRequest;
         }
 
         if (HandlerMethod.class.isAssignableFrom(parameterType)) {
