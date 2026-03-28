@@ -114,11 +114,8 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
     private Method getExceptionHandlerMethod(HandlerMethod handlerMethod, Exception exception) {
         Class<?> handlerType = handlerMethod.getHandlerType();
         // handler 타입별 @ExceptionHandler 매핑을 캐시한다.
-        ExceptionHandlerMethodResolver resolver = exceptionHandlerCache.get(handlerType);
-        if (resolver == null) {
-            resolver = new ExceptionHandlerMethodResolver(handlerType);
-            exceptionHandlerCache.put(handlerType, resolver);
-        }
+        ExceptionHandlerMethodResolver resolver =
+            exceptionHandlerCache.computeIfAbsent(handlerType, ExceptionHandlerMethodResolver::new);
 
         if (!resolver.hasExceptionMappings()) {
             return null;
