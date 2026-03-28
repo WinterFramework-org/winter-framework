@@ -50,6 +50,7 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
         try {
             writeResolvedError(request, response, resolvedError);
         } catch (Exception ex) {
+            System.err.println("Failure in DefaultHandlerExceptionResolver while resolving [" + exception.getClass().getSimpleName() + "] - " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
             // 예외 처리가 실패하면 다음 resolver로 넘긴다.
             return null;
         }
