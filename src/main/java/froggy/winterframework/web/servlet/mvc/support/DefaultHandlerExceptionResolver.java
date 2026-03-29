@@ -3,14 +3,17 @@ package froggy.winterframework.web.servlet.mvc.support;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import froggy.winterframework.validation.BindingResult;
 import froggy.winterframework.validation.MethodArgumentNotValidException;
 import froggy.winterframework.web.ModelAndView;
 import froggy.winterframework.web.servlet.ExceptionResolver;
 import froggy.winterframework.web.servlet.MethodNotAllowedException;
 import froggy.winterframework.web.servlet.NoHandlerFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
@@ -59,7 +62,7 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
 
     private ResolvedError resolveError(Exception exception) {
         if (exception instanceof MethodArgumentNotValidException) {
-            return resolveValidationError();
+            return resolveValidationError((MethodArgumentNotValidException) exception);
         }
 
         if (exception instanceof NoHandlerFoundException) {
@@ -73,11 +76,45 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
         return null;
     }
 
-    private ResolvedError resolveValidationError() {
-        return ResolvedError.of(
+    private ResolvedError resolveValidationError(MethodArgumentNotValidException exception) {
+        return new ValidationResolvedError(
             HttpServletResponse.SC_BAD_REQUEST,
             "BAD_REQUEST",
-            "Validation failed"
+            "Validation failed",
+            createValidationErrors(exception.getBindingResult())
+        );
+    }
+
+    private List<ValidationErrorDetail> createValidationErrors(BindingResult bindingResult) {
+        List<ValidationErrorDetail> errors = new ArrayList<>();
+        for (BindingResult.FieldError fieldError : bindingResult.getFieldErrors()) {
+            errors.add(createFieldError(fieldError));
+        }
+        for (BindingResult.ObjectError globalError : bindingResult.getGlobalErrors()) {
+            errors.add(createGlobalError(globalError));
+        }
+        return errors;
+    }
+
+    private ValidationErrorDetail createFieldError(BindingResult.FieldError fieldError) {
+        return new ValidationErrorDetail(
+            "field",
+            fieldError.getObjectName(),
+            fieldError.getField(),
+            fieldError.getRejectedValue(),
+            fieldError.getCode(),
+            fieldError.getMessage()
+        );
+    }
+
+    private ValidationErrorDetail createGlobalError(BindingResult.ObjectError globalError) {
+        return new ValidationErrorDetail(
+            "global",
+            globalError.getObjectName(),
+            null,
+            null,
+            globalError.getCode(),
+            globalError.getMessage()
         );
     }
 
@@ -149,6 +186,10 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
         body.put("code", resolvedError.getCode());
         body.put("message", resolvedError.getMessage());
         body.put("path", request.getRequestURI() != null ? request.getRequestURI() : "");
+        if (resolvedError instanceof ValidationResolvedError) {
+            ValidationResolvedError validationResolvedError = (ValidationResolvedError) resolvedError;
+            body.put("errors", validationResolvedError.getErrors());
+        }
         return body;
     }
 
@@ -183,7 +224,7 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
         return mapper;
     }
 
-    private static final class ResolvedError {
+    private static class ResolvedError {
 
         private final int status;
         private final String code;
@@ -224,6 +265,75 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
 
         private Map<String, String> getHeaders() {
             return headers;
+        }
+    }
+
+    private static final class ValidationResolvedError extends ResolvedError {
+
+        private final List<ValidationErrorDetail> errors;
+
+        private ValidationResolvedError(
+            int status,
+            String code,
+            String message,
+            List<ValidationErrorDetail> errors
+        ) {
+            super(status, code, message, Collections.emptyMap());
+            this.errors = new ArrayList<>(errors);
+        }
+
+        private List<ValidationErrorDetail> getErrors() {
+            return errors;
+        }
+    }
+
+    private static final class ValidationErrorDetail {
+
+        private final String type;
+        private final String objectName;
+        private final String field;
+        private final Object rejectedValue;
+        private final String code;
+        private final String message;
+
+        private ValidationErrorDetail(
+            String type,
+            String objectName,
+            String field,
+            Object rejectedValue,
+            String code,
+            String message
+        ) {
+            this.type = type;
+            this.objectName = objectName;
+            this.field = field;
+            this.rejectedValue = rejectedValue;
+            this.code = code;
+            this.message = message;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public String getObjectName() {
+            return objectName;
+        }
+
+        public String getField() {
+            return field;
+        }
+
+        public Object getRejectedValue() {
+            return rejectedValue;
+        }
+
+        public String getCode() {
+            return code;
+        }
+
+        public String getMessage() {
+            return message;
         }
     }
 }
