@@ -172,7 +172,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
                 continue;
             }
 
-            BindingResult bindingResult = new BindingResult(arg, parameter.getParameterName());
+            BindingResult bindingResult = new BindingResult(arg, parameter.getParameterType().getSimpleName());
             if (arg != null) {
                 validator.validate(arg, bindingResult);
             }
