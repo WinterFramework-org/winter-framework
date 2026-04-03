@@ -18,6 +18,7 @@ import froggy.winterframework.web.method.annotation.RequestHeaderMethodArgumentR
 import froggy.winterframework.web.method.annotation.RequestParamMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.ResponseBodyMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.ServletCookieValueMethodArgumentResolver;
+import froggy.winterframework.web.method.annotation.ServletRequestMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.ServletResponseMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodReturnValueHandler;
@@ -52,6 +53,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         resolvers.add(new PathVariableMethodArgumentResolver(converter));
         resolvers.add(new RequestBodyMethodArgumentResolver());
         resolvers.add(new RequestHeaderMethodArgumentResolver(converter));
+        resolvers.add(new ServletRequestMethodArgumentResolver());
         resolvers.add(new ServletResponseMethodArgumentResolver());
         resolvers.add(new ServletCookieValueMethodArgumentResolver(converter));
     }
