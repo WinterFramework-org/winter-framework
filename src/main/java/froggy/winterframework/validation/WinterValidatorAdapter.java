@@ -4,7 +4,7 @@ import java.util.Set;
 import javax.validation.ConstraintViolation;
 
 /**
- * Winter 검증 인터페이스를 Bean Validation(javax.validation) 엔진에 연결하는 어댑터.
+ * Winter Validator를 Bean Validation 엔진에 연결하는 어댑터.
  */
 public class WinterValidatorAdapter implements Validator {
 
@@ -46,18 +46,27 @@ public class WinterValidatorAdapter implements Validator {
                 ? violation.getPropertyPath().toString()
                 : "";
 
+            String errorCode = determineErrorCode(violation);
+
             if (propertyPath.isEmpty()) {
-                bindingResult.addGlobalError(violation.getMessageTemplate(), violation.getMessage());
+                bindingResult.addGlobalError(errorCode, violation.getMessage());
                 continue;
             }
 
             bindingResult.addFieldError(
                 propertyPath,
                 violation.getInvalidValue(),
-                violation.getMessageTemplate(),
+                errorCode,
                 violation.getMessage()
             );
         }
+    }
+
+    /**
+     * 검증 어노테이션 이름을 오류 코드로 사용한다.
+     */
+    private String determineErrorCode(ConstraintViolation<?> violation) {
+        return violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
     }
 
     /**
