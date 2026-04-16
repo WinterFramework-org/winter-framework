@@ -17,6 +17,7 @@ import froggy.winterframework.web.method.annotation.RequestBodyMethodArgumentRes
 import froggy.winterframework.web.method.annotation.RequestHeaderMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.RequestParamMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.ResponseBodyMethodReturnValueHandler;
+import froggy.winterframework.web.method.annotation.ResponseEntityMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.ServletCookieValueMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.ServletRequestMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.ServletResponseMethodArgumentResolver;
@@ -60,6 +61,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
 
     private void initReturnValueHandlers() {
         returnValueHandlers.add(new ModelAndViewMethodReturnValueHandler());
+        returnValueHandlers.add(new ResponseEntityMethodReturnValueHandler());
         returnValueHandlers.add(new ResponseBodyMethodReturnValueHandler());
     }
 
@@ -109,6 +111,7 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         Object[] args = getMethodArgumentValues(webRequest, methodParameters, mavContainer);
 
         Object returnValue = invokeHandlerMethod(instance, method, args);
+        Class<?> declaredReturnType = handlerMethod.getReturnType();
 
         if (returnValue == null && mavContainer.isRequestHandled()) {
             return mavContainer;
@@ -118,13 +121,20 @@ public class DefaultControllerHandlerAdapter implements HandlerAdapter {
         for (HandlerMethodReturnValueHandler returnValueHandler : returnValueHandlers) {
             if (returnValueHandler.supportsReturnType(handlerMethod)) {
                 returnValueHandler.handleReturnValue(
-                    returnValue, returnValue.getClass(), webRequest, mavContainer);
+                    returnValue, declaredReturnType, webRequest, mavContainer);
+                if (returnValue == null && !mavContainer.isRequestHandled()
+                    && mavContainer.getView() == null) {
+                    throw new IllegalStateException(
+                        "Handler returned null without handling the response: "
+                            + instance.getClass().getSimpleName() + "#" + method.getName()
+                    );
+                }
                 return mavContainer;
             }
         }
 
         throw new IllegalStateException("No suitable HandlerMethodReturnValueHandler found for return type: "
-            + returnValue.getClass().getName() + " in method: "
+            + declaredReturnType.getName() + " in method: "
             + instance.getClass().getSimpleName() + "#" + method.getName());
     }
 

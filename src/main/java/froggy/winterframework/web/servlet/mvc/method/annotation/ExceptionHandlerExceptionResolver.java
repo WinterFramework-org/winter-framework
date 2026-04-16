@@ -8,6 +8,7 @@ import froggy.winterframework.web.method.HandlerMethod;
 import froggy.winterframework.web.method.annotation.ExceptionHandlerMethodResolver;
 import froggy.winterframework.web.method.annotation.ModelAndViewMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.ResponseBodyMethodReturnValueHandler;
+import froggy.winterframework.web.method.annotation.ResponseEntityMethodReturnValueHandler;
 import froggy.winterframework.web.method.annotation.ServletRequestMethodArgumentResolver;
 import froggy.winterframework.web.method.annotation.ServletResponseMethodArgumentResolver;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
@@ -44,6 +45,7 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
 
     public void initReturnValueHandlers() {
         returnValueHandlers.add(new ModelAndViewMethodReturnValueHandler());
+        returnValueHandlers.add(new ResponseEntityMethodReturnValueHandler());
         returnValueHandlers.add(new ResponseBodyMethodReturnValueHandler());
     }
 
@@ -262,11 +264,6 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
                 mavContainer.setRequestHandled(true);
                 return mavContainer;
             }
-
-            throw new IllegalStateException(
-                "@ExceptionHandler must not return null without handling the response: "
-                    + methodSignature(exceptionHandlerMethod)
-            );
         }
 
         // 반환값이 있으면 최종 응답 처리 여부는 ReturnValueHandler가 다시 결정한다.
@@ -275,7 +272,14 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
         for (HandlerMethodReturnValueHandler returnValueHandler : returnValueHandlers) {
             if (returnValueHandler.supportsReturnType(exceptionHandler)) {
                 returnValueHandler.handleReturnValue(
-                    returnValue, returnValue.getClass(), webRequest, mavContainer);
+                    returnValue, exceptionHandlerMethod.getReturnType(), webRequest, mavContainer);
+                if (returnValue == null && !mavContainer.isRequestHandled()
+                    && mavContainer.getView() == null) {
+                    throw new IllegalStateException(
+                        "@ExceptionHandler must not return null without handling the response: "
+                            + methodSignature(exceptionHandlerMethod)
+                    );
+                }
                 return mavContainer;
             }
         }
@@ -283,6 +287,13 @@ public class ExceptionHandlerExceptionResolver implements ExceptionResolver {
         if (returnValue instanceof String) {
             mavContainer.setView((String) returnValue);
             return mavContainer;
+        }
+
+        if (returnValue == null) {
+            throw new IllegalStateException(
+                "@ExceptionHandler must not return null without handling the response: "
+                    + methodSignature(exceptionHandlerMethod)
+            );
         }
 
         throw new IllegalStateException(
