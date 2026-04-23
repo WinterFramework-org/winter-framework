@@ -261,13 +261,17 @@ public class DispatcherServlet extends HttpServlet {
      * @return 정적 리소스 요청이면 {@code true}, 그렇지 않으면 {@code false}
      */
     private boolean isStaticResource(HttpServletRequest request, HttpServletResponse response) {
-        String accept = request.getHeader("Accept");
         String requestURI = request.getRequestURI();
 
 
         if (requestURI.equals("/") || requestURI.endsWith(".jsp") || requestURI.endsWith(".html")) {
             response.setContentType("text/html"); // MIME 타입 설정
             return true;
+        }
+
+        String accept = request.getHeader("Accept");
+        if (accept == null || accept.trim().isEmpty()) {
+            return false;
         }
 
         if (accept.startsWith("text/css")) {
