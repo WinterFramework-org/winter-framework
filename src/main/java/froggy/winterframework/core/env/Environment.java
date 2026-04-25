@@ -1,7 +1,6 @@
 package froggy.winterframework.core.env;
 
 import froggy.winterframework.core.PropertySource;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -123,7 +122,7 @@ public class Environment {
             try (InputStream input = ClassLoader.getSystemClassLoader()
                 .getResourceAsStream("application.properties")) {
                 if (input == null) {
-                    throw new FileNotFoundException("application.properties not found in classpath");
+                    return new PropertySource("properties", new HashMap<>());
                 }
                 prop.load(input);
             }
