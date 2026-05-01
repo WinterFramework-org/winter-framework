@@ -14,6 +14,7 @@ import froggy.winterframework.web.servlet.MethodNotAllowedException;
 import froggy.winterframework.web.servlet.NoHandlerFoundException;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -224,11 +225,35 @@ public class RequestMappingHandlerMapping extends ApplicationContextSupport impl
         }
 
         public HandlerMethod addMappings(RequestMappingInfo requestMappingInfo, HandlerMethod handlerMethod) {
+            Map<RequestMappingInfo, HandlerMethod> selectedHandlerMap = directPathHandlerMap;
             if (handlerMethod.hasPathVariable()) {
-                return pathVariableHandlerMap.put(requestMappingInfo, handlerMethod);
+                selectedHandlerMap = pathVariableHandlerMap;
             }
 
-            return directPathHandlerMap.put(requestMappingInfo, handlerMethod);
+            Set<RequestMethod> requestMethods = requestMappingInfo.getHttpMethods();
+            if (requestMethods.isEmpty()) {
+                requestMethods = new HashSet<>(Arrays.asList(RequestMethod.values()));
+            }
+
+            // 등록 전에 URL pattern과 HTTP Method 조합이 이미 등록되어 있는지 확인한다.
+            for (RequestMethod method : requestMethods) {
+                RequestMappingInfo singleMethodMapping =
+                    new RequestMappingInfo(requestMappingInfo.getUrlPattern(), method);
+
+                HandlerMethod existingHandlerMethod = selectedHandlerMap.get(singleMethodMapping);
+                if (existingHandlerMethod != null) {
+                    return existingHandlerMethod;
+                }
+            }
+
+            // 여러 HTTP Method 매핑을 단일 method 매핑으로 나누어 저장한다.
+            for (RequestMethod method : requestMethods) {
+                RequestMappingInfo singleMethodMapping =
+                    new RequestMappingInfo(requestMappingInfo.getUrlPattern(), method);
+                selectedHandlerMap.put(singleMethodMapping, handlerMethod);
+            }
+
+            return null;
         }
 
         public HandlerMethod getMappingsByPathVariable(String requestURI, String requestMethod) {

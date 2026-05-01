@@ -24,7 +24,7 @@ public class RequestMappingInfo {
 
     public RequestMappingInfo(String urlPattern, Set<RequestMethod> requestMethods) {
         this.urlPattern = initUrlPattern(urlPattern);
-        this.requestMethods = requestMethods;
+        this.requestMethods = Collections.unmodifiableSet(new LinkedHashSet<>(requestMethods));
     }
 
     public static RequestMappingInfo emptyRequestMappingInfo() {
@@ -88,10 +88,10 @@ public class RequestMappingInfo {
     }
 
     /**
-     * 두 개의 RequestMappingInfo 객체가 같은 URL 패턴, HTTP Method를 비교.
+     * 두 개의 RequestMappingInfo 객체가 같은 URL 패턴, HTTP Method 조건을 갖는지 비교.
      *
      * @param o 비교 대상 객체
-     * @return urlPattern이 같고 HTTP Method를 지원하면 {@code true}, 그렇지 않으면 {@code false}
+     * @return urlPattern과 HTTP Method 조건이 모두 같으면 {@code true}, 그렇지 않으면 {@code false}
      */
     @Override
     public boolean equals(Object o) {
@@ -100,16 +100,13 @@ public class RequestMappingInfo {
         }
 
         RequestMappingInfo other = (RequestMappingInfo) o;
-        if (Collections.disjoint(this.requestMethods, other.requestMethods)) {
-            return false;
-        }
-
-        return urlPattern.equals(((RequestMappingInfo) o).urlPattern);
+        return Objects.equals(urlPattern, other.urlPattern)
+            && Objects.equals(requestMethods, other.requestMethods);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(urlPattern);
+        return Objects.hash(urlPattern, requestMethods);
     }
 
 }
