@@ -83,7 +83,7 @@ public class Environment {
     }
 
     private String lookupProperty(String key) {
-        String k = (key.startsWith("{$") && key.endsWith("}"))
+        String k = (key.startsWith("${") && key.endsWith("}"))
             ? key.substring(2, key.length()-1)
             : key;
         return propertySource.getSource().get(k);
