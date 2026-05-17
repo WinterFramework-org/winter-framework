@@ -111,13 +111,26 @@ public class WinterUtils {
                 .setScanners(new SubTypesScanner(false))
             );
 
-            results.addAll(reflections.getSubTypesOf(Object.class));
+            results.addAll(reflections.getSubTypesOf(Object.class).stream()
+                .filter(clazz -> isInCandidatePackage(clazz, candidatePackage))
+                .collect(Collectors.toSet()));
         }
 
         return results.stream()
             .filter(clazz -> hasAnnotation(clazz, targetAnnotation))
             .filter(clazz -> !clazz.isAnnotation())
             .collect(Collectors.toSet());
+    }
+
+    private static boolean isInCandidatePackage(Class<?> clazz, String candidatePackage) {
+        Package actualPackage = clazz.getPackage();
+        if (actualPackage == null) {
+            return false;
+        }
+
+        String packageName = actualPackage.getName();
+        return packageName.equals(candidatePackage)
+            || packageName.startsWith(candidatePackage + ".");
     }
 
 }
