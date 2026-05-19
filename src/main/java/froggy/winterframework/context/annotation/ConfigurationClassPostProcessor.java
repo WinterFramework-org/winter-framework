@@ -7,10 +7,10 @@ import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.utils.WinterUtils;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @Configuration 설정 클래스 내부를 스캔하는 PostProcessor.
@@ -22,7 +22,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
     @Override
     public void postProcessBeanDefinitionRegistry(BeanFactory beanFactory) {
-        Set<Class<?>> configCandidates = findConfigurationCandidates(beanFactory);
+        List<ConfigurationCandidate> configCandidates = findConfigurationCandidates(beanFactory);
         HashMap<String, BeanDefinition> beanDefinitions = createBeanDefinitions(configCandidates);
 
         for (Map.Entry<String, BeanDefinition> entry : beanDefinitions.entrySet()) {
@@ -33,29 +33,33 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
         }
     }
 
-    private Set<Class<?>> findConfigurationCandidates(BeanFactory beanFactory) {
-        Set<Class<?>> result = new LinkedHashSet<>();
+    private List<ConfigurationCandidate> findConfigurationCandidates(BeanFactory beanFactory) {
+        List<ConfigurationCandidate> result = new ArrayList<>();
 
-        result.addAll(WinterUtils.scanTypesAnnotatedWith(
-            Component.class,
-            beanFactory.resolveEmbeddedValue("basePackage")
-        ));
+        for (String beanName : beanFactory.getBeanDefinitionNames()) {
+            BeanDefinition beanDefinition = beanFactory.getBeanDefinition(beanName);
+            // FactoryMethod 기반 BeanDefinition은 설정 클래스 후보가 아니므로 제외한다.
+            if (beanDefinition.getFactoryMethodName() != null) {
+                continue;
+            }
 
-        result.addAll(WinterUtils.scanTypesAnnotatedWith(
-            Component.class,
-            "froggy.winterframework"
-        ));
+            Class<?> beanClass = beanDefinition.getBeanClass();
+            if (WinterUtils.hasAnnotation(beanClass, Component.class)) {
+                result.add(new ConfigurationCandidate(beanName, beanClass));
+            }
+        }
+
         return result;
     }
 
     /**
      * @Configuration 클래스 내부를 스캔해 Bean 등록 대상들을 BeanDefinition으로 생성
      */
-    private HashMap<String, BeanDefinition> createBeanDefinitions(Set<Class<?>> configurationClasses) {
+    private HashMap<String, BeanDefinition> createBeanDefinitions(List<ConfigurationCandidate> configurationCandidates) {
         HashMap<String, BeanDefinition> result = new HashMap<>();
-        for (Class<?> configClass : configurationClasses) {
-            result.putAll(scanFactoryMethods(configClass));
-            result.putAll(scanNestedComponentClasses(configClass));
+        for (ConfigurationCandidate candidate : configurationCandidates) {
+            result.putAll(scanFactoryMethods(candidate));
+            result.putAll(scanNestedComponentClasses(candidate.beanClass));
         }
 
         return result;
@@ -64,17 +68,16 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
     /**
      * @Bean 어노테이션이 붙은 FactoryMethod를 스캔하여 BeanDefinition 으로 변환
      */
-    private HashMap<String, BeanDefinition> scanFactoryMethods(Class<?> configClass) {
+    private HashMap<String, BeanDefinition> scanFactoryMethods(ConfigurationCandidate candidate) {
         HashMap<String, BeanDefinition> result = new HashMap<>();
 
-        String configBeanName = WinterUtils.resolveSimpleBeanName(configClass);
-        for (Method method : configClass.getMethods()) {
+        for (Method method : candidate.beanClass.getMethods()) {
             if (WinterUtils.hasAnnotation(method, Bean.class)) {
                 ScopeType scopeType = scopeMetadataResolver.resolveScopeMetadata(method);
                 BeanDefinition bd = new BeanDefinition(
                     method.getReturnType(),
                     scopeType,
-                    configBeanName,
+                    candidate.beanName,
                     method.getName()
                 );
 
@@ -103,5 +106,15 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
         }
 
         return result;
+    }
+
+    private static class ConfigurationCandidate {
+        private final String beanName;
+        private final Class<?> beanClass;
+
+        private ConfigurationCandidate(String beanName, Class<?> beanClass) {
+            this.beanName = beanName;
+            this.beanClass = beanClass;
+        }
     }
 }
