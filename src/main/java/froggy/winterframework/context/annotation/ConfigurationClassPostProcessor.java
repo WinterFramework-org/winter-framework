@@ -53,24 +53,25 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
     }
 
     /**
-     * @Configuration 클래스 내부를 스캔해 Bean 등록 대상들을 BeanDefinition으로 생성
+     * @Configuration 클래스 내부를 스캔해 Bean 등록 대상들을 BeanDefinition으로 생성한다.
      */
     private HashMap<String, BeanDefinition> createBeanDefinitions(List<ConfigurationCandidate> configurationCandidates) {
         HashMap<String, BeanDefinition> result = new HashMap<>();
         for (ConfigurationCandidate candidate : configurationCandidates) {
-            result.putAll(scanFactoryMethods(candidate));
-            result.putAll(scanNestedComponentClasses(candidate.beanClass));
+            addBeanDefinitionsForBeanMethods(result, candidate);
+            addBeanDefinitionsForNestedComponentClasses(result, candidate.beanClass);
         }
 
         return result;
     }
 
     /**
-     * @Bean 어노테이션이 붙은 FactoryMethod를 스캔하여 BeanDefinition 으로 변환
+     * @Bean 메서드로 선언된 BeanDefinition 후보를 추가한다.
      */
-    private HashMap<String, BeanDefinition> scanFactoryMethods(ConfigurationCandidate candidate) {
-        HashMap<String, BeanDefinition> result = new HashMap<>();
-
+    private void addBeanDefinitionsForBeanMethods(
+        Map<String, BeanDefinition> target,
+        ConfigurationCandidate candidate
+    ) {
         for (Method method : candidate.beanClass.getMethods()) {
             if (WinterUtils.hasAnnotation(method, Bean.class)) {
                 ScopeType scopeType = scopeMetadataResolver.resolveScopeMetadata(method);
@@ -81,19 +82,18 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
                     method.getName()
                 );
 
-                result.put(method.getName(), bd);
+                addBeanDefinition(target, method.getName(), bd);
             }
         }
-
-        return result;
     }
 
     /**
-     * @Component 어노테이션이 붙은 중첩 클래스를 스캔하여 BeanDefinition 으로 변환
+     * @Component 중첩 클래스로 선언된 BeanDefinition 후보를 추가한다.
      */
-    private HashMap<String, BeanDefinition> scanNestedComponentClasses(Class<?> configClass) {
-        HashMap<String, BeanDefinition> result = new HashMap<>();
-
+    private void addBeanDefinitionsForNestedComponentClasses(
+        Map<String, BeanDefinition> target,
+        Class<?> configClass
+    ) {
         for (Class<?> nestedClass : configClass.getDeclaredClasses()) {
             if (WinterUtils.hasAnnotation(nestedClass, Component.class)) {
                 BeanDefinition bd = new BeanDefinition(
@@ -101,11 +101,20 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
                     scopeMetadataResolver.resolveScopeMetadata(nestedClass)
                 );
 
-                result.put(WinterUtils.resolveSimpleBeanName(nestedClass), bd);
+                addBeanDefinition(target, WinterUtils.resolveSimpleBeanName(nestedClass), bd);
             }
         }
+    }
 
-        return result;
+    /**
+     * CCPP가 생성한 BeanDefinition 후보를 추가한다.
+     */
+    private void addBeanDefinition(Map<String, BeanDefinition> target, String beanName, BeanDefinition beanDefinition) {
+        if (target.containsKey(beanName)) {
+            throw new IllegalStateException("Duplicate BeanDefinition name: " + beanName);
+        }
+
+        target.put(beanName, beanDefinition);
     }
 
     private static class ConfigurationCandidate {
