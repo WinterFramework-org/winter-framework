@@ -1,6 +1,7 @@
 package froggy.winterframework.aop.framework;
 
 import froggy.winterframework.aop.MethodInterceptor;
+import froggy.winterframework.stereotype.Component;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+@Component
 public class JdkProxyFactory implements ProxyFactory {
 
     @Override
