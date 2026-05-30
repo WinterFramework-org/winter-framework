@@ -3,6 +3,7 @@ package froggy.winterframework.beans.factory.support;
 import froggy.winterframework.beans.factory.annotation.Autowired;
 import froggy.winterframework.beans.factory.annotation.Value;
 import froggy.winterframework.beans.factory.config.BeanDefinition;
+import froggy.winterframework.beans.factory.config.BeanPostProcessor;
 import froggy.winterframework.core.env.Environment;
 import froggy.winterframework.utils.WinterUtils;
 import java.lang.reflect.Constructor;
@@ -35,6 +36,7 @@ public class BeanFactory extends SingletonBeanRegistry {
     /** BeanName을 Key로 하는 BeanDefinition 객체 Map */
     private final Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(32);
     private final Map<Class<?>, Object> resolvableDependencies = new ConcurrentHashMap<>(8);
+    private final List<BeanPostProcessor> beanPostProcessors = new ArrayList<>();
 
     /** 애플리케이션 전체 설정(properties, 환경변수 등)을 제공하는 Environment */
     private Environment environment;
@@ -145,6 +147,14 @@ public class BeanFactory extends SingletonBeanRegistry {
         }
     }
 
+    public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
+        if (beanPostProcessor == null) {
+            throw new IllegalArgumentException("BeanPostProcessor must not be null");
+        }
+
+        beanPostProcessors.add(beanPostProcessor);
+    }
+
     /**
      * 등록된 Bean을 조회하여 반환하는 외부 메소드.
      *
@@ -243,12 +253,26 @@ public class BeanFactory extends SingletonBeanRegistry {
      */
     private Object doCreateBean(String beanName, BeanDefinition beanDefinition) throws RuntimeException {
         Object beanInstance = createBeanInstance(beanName, beanDefinition);
+        Object exposedBean = applyBeanPostProcessorsAfterInitialization(beanInstance, beanName);
 
         if (beanDefinition.isSingleton()) {
-            registerSingleton(beanName, beanInstance);
+            registerSingleton(beanName, exposedBean);
         }
 
-        return beanInstance;
+        return exposedBean;
+    }
+
+    private Object applyBeanPostProcessorsAfterInitialization(Object bean, String beanName) {
+        Object result = bean;
+
+        for (BeanPostProcessor postProcessor : beanPostProcessors) {
+            result = postProcessor.postProcessAfterInitialization(result, beanName);
+            if (result == null) {
+                throw new IllegalStateException("BeanPostProcessor returned null for bean: " + beanName);
+            }
+        }
+
+        return result;
     }
 
     /**

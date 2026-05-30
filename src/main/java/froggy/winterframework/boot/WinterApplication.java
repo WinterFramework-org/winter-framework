@@ -4,6 +4,7 @@ import static froggy.winterframework.utils.WinterUtils.hasAnnotation;
 
 import froggy.winterframework.beans.factory.config.BeanDefinition;
 import froggy.winterframework.beans.factory.config.BeanFactoryPostProcessor;
+import froggy.winterframework.beans.factory.config.BeanPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import froggy.winterframework.beans.factory.support.BeanFactory;
 import froggy.winterframework.boot.web.embedded.jetty.jettyWebServer;
@@ -132,6 +133,8 @@ public class WinterApplication {
 
         postProcessBeanFactory(context.getBeanFactory(), context.getBeanFactoryPostProcessors());
 
+        registerBeanPostProcessors(context.getBeanFactory());
+
         finishBeanFactoryInitialization(context.getBeanFactory());
     }
 
@@ -162,6 +165,17 @@ public class WinterApplication {
         // 2. BeanFactoryPostProcessor#postProcessBeanFactory 실행
         for (BeanFactoryPostProcessor pp : allProcessors) {
             pp.postProcessBeanFactory(factory);
+        }
+    }
+
+    private void registerBeanPostProcessors(BeanFactory beanFactory) {
+        List<BeanPostProcessor> postProcessors = new ArrayList<>();
+        for (String ppName : beanFactory.getBeanNamesForType(BeanPostProcessor.class)) {
+            postProcessors.add(beanFactory.getBean(ppName, BeanPostProcessor.class));
+        }
+
+        for (BeanPostProcessor postProcessor : postProcessors) {
+            beanFactory.addBeanPostProcessor(postProcessor);
         }
     }
 
