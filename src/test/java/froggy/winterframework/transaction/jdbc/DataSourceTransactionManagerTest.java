@@ -1,6 +1,7 @@
 package froggy.winterframework.transaction.jdbc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
@@ -14,9 +15,11 @@ import static org.mockito.Mockito.verify;
 
 import froggy.winterframework.transaction.TransactionException;
 import froggy.winterframework.transaction.TransactionStatus;
+import froggy.winterframework.transaction.support.TransactionSynchronizationManager;
 import java.sql.Connection;
 import java.sql.SQLException;
 import javax.sql.DataSource;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,6 +41,11 @@ public class DataSourceTransactionManagerTest {
     @Before
     public void setUp() {
         transactionManager = new DataSourceTransactionManager(dataSource);
+    }
+
+    @After
+    public void clearTransactionResources() {
+        TransactionSynchronizationManager.clear();
     }
 
     @Test
@@ -85,6 +93,19 @@ public class DataSourceTransactionManagerTest {
         assertNotNull(status);
         verify(connection, never()).setAutoCommit(anyBoolean());
         verify(connection, never()).close();
+    }
+
+    @Test
+    public void begin은_가져온_connection을_dataSource_key로_바인딩한다() throws SQLException {
+        // Given
+        given(dataSource.getConnection()).willReturn(connection);
+        given(connection.getAutoCommit()).willReturn(true);
+
+        // When
+        transactionManager.begin();
+
+        // Then
+        assertSame(connection, TransactionSynchronizationManager.getResource(dataSource));
     }
 
     @Test
@@ -207,6 +228,49 @@ public class DataSourceTransactionManagerTest {
     }
 
     @Test
+    public void begin에서_이미_바인딩된_dataSource면_기존_resource를_유지하고_새_connection을_정리한다() throws SQLException {
+        // Given
+        Object existingResource = new Object();
+        TransactionSynchronizationManager.bindResource(dataSource, existingResource);
+        given(dataSource.getConnection()).willReturn(connection);
+        given(connection.getAutoCommit()).willReturn(true);
+
+        // When
+        TransactionException actualException = assertThrows(
+            TransactionException.class,
+            () -> transactionManager.begin()
+        );
+
+        // Then
+        assertEquals("Failed to begin transaction", actualException.getMessage());
+        assertEquals(IllegalStateException.class, actualException.getCause().getClass());
+
+        InOrder inOrder = inOrder(connection);
+        inOrder.verify(connection).getAutoCommit();
+        inOrder.verify(connection).setAutoCommit(false);
+        inOrder.verify(connection).setAutoCommit(true);
+        inOrder.verify(connection).close();
+    }
+
+    @Test
+    public void begin에서_이미_바인딩된_dataSource면_기존_resource를_유지한다() throws SQLException {
+        // Given
+        Object existingResource = new Object();
+        TransactionSynchronizationManager.bindResource(dataSource, existingResource);
+        given(dataSource.getConnection()).willReturn(connection);
+        given(connection.getAutoCommit()).willReturn(true);
+
+        // When
+        assertThrows(
+            TransactionException.class,
+            () -> transactionManager.begin()
+        );
+
+        // Then
+        assertSame(existingResource, TransactionSynchronizationManager.getResource(dataSource));
+    }
+
+    @Test
     public void commit은_connection을_commit하고_autoCommit을_복원한_뒤_close한다() throws SQLException {
         // Given
         given(dataSource.getConnection()).willReturn(connection);
@@ -226,6 +290,20 @@ public class DataSourceTransactionManagerTest {
     }
 
     @Test
+    public void commit은_완료_후_dataSource_resource를_unbind한다() throws SQLException {
+        // Given
+        given(dataSource.getConnection()).willReturn(connection);
+        given(connection.getAutoCommit()).willReturn(true);
+        TransactionStatus status = transactionManager.begin();
+
+        // When
+        transactionManager.commit(status);
+
+        // Then
+        assertFalse(TransactionSynchronizationManager.hasResource(dataSource));
+    }
+
+    @Test
     public void rollback은_connection을_rollback하고_autoCommit을_복원한_뒤_close한다() throws SQLException {
         // Given
         given(dataSource.getConnection()).willReturn(connection);
@@ -242,6 +320,20 @@ public class DataSourceTransactionManagerTest {
         inOrder.verify(connection).setAutoCommit(true);
         inOrder.verify(connection).close();
         verify(connection, never()).commit();
+    }
+
+    @Test
+    public void rollback은_완료_후_dataSource_resource를_unbind한다() throws SQLException {
+        // Given
+        given(dataSource.getConnection()).willReturn(connection);
+        given(connection.getAutoCommit()).willReturn(true);
+        TransactionStatus status = transactionManager.begin();
+
+        // When
+        transactionManager.rollback(status);
+
+        // Then
+        assertFalse(TransactionSynchronizationManager.hasResource(dataSource));
     }
 
     @Test
@@ -388,6 +480,25 @@ public class DataSourceTransactionManagerTest {
     }
 
     @Test
+    public void commit이_실패해도_dataSource_resource를_unbind한다() throws SQLException {
+        // Given
+        SQLException commitFailure = new SQLException("commit failed");
+        given(dataSource.getConnection()).willReturn(connection);
+        given(connection.getAutoCommit()).willReturn(true);
+        TransactionStatus status = transactionManager.begin();
+        willThrow(commitFailure).given(connection).commit();
+
+        // When
+        assertThrows(
+            TransactionException.class,
+            () -> transactionManager.commit(status)
+        );
+
+        // Then
+        assertFalse(TransactionSynchronizationManager.hasResource(dataSource));
+    }
+
+    @Test
     public void commit_실패_후_close도_실패하면_close_예외를_suppressed로_보관한다() throws SQLException {
         // Given
         SQLException commitFailure = new SQLException("commit failed");
@@ -458,6 +569,25 @@ public class DataSourceTransactionManagerTest {
         inOrder.verify(connection).rollback();
         inOrder.verify(connection).setAutoCommit(true);
         inOrder.verify(connection).close();
+    }
+
+    @Test
+    public void rollback이_실패해도_dataSource_resource를_unbind한다() throws SQLException {
+        // Given
+        SQLException rollbackFailure = new SQLException("rollback failed");
+        given(dataSource.getConnection()).willReturn(connection);
+        given(connection.getAutoCommit()).willReturn(true);
+        TransactionStatus status = transactionManager.begin();
+        willThrow(rollbackFailure).given(connection).rollback();
+
+        // When
+        assertThrows(
+            TransactionException.class,
+            () -> transactionManager.rollback(status)
+        );
+
+        // Then
+        assertFalse(TransactionSynchronizationManager.hasResource(dataSource));
     }
 
     @Test

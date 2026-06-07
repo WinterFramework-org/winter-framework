@@ -3,6 +3,7 @@ package froggy.winterframework.transaction.jdbc;
 import froggy.winterframework.transaction.TransactionException;
 import froggy.winterframework.transaction.TransactionManager;
 import froggy.winterframework.transaction.TransactionStatus;
+import froggy.winterframework.transaction.support.TransactionSynchronizationManager;
 import java.sql.Connection;
 import java.sql.SQLException;
 import javax.sql.DataSource;
@@ -29,18 +30,20 @@ public class DataSourceTransactionManager implements TransactionManager {
     @Override
     public TransactionStatus begin() throws TransactionException {
         Connection connection = null;
+        boolean mustRestoreAutoCommit = false;
 
         try {
             connection = dataSource.getConnection();
-            boolean mustRestoreAutoCommit = connection.getAutoCommit();
+            mustRestoreAutoCommit = connection.getAutoCommit();
             if (mustRestoreAutoCommit) {
                 connection.setAutoCommit(false);
             }
+            TransactionSynchronizationManager.bindResource(dataSource, connection);
 
             return new JdbcTransactionStatus(connection, mustRestoreAutoCommit);
         } catch (RuntimeException | SQLException e) {
             TransactionException failure = toTransactionException(BEGIN_FAILURE_MESSAGE, e);
-            throw mergeFailures(failure, closeIfNecessary(connection));
+            throw mergeFailures(failure, cleanupAfterBeginFailure(connection, mustRestoreAutoCommit));
         }
     }
 
@@ -68,25 +71,49 @@ public class DataSourceTransactionManager implements TransactionManager {
             failure = toTransactionException(failureMessage, e);
         }
 
-        failure = mergeFailures(failure, cleanup(status));
+        failure = mergeFailures(failure, cleanupAfterCompletion(status));
         status.markTransactionCompleted();
         if (failure != null) {
             throw failure;
         }
     }
 
-    private TransactionException cleanup(JdbcTransactionStatus status) {
-        TransactionException failure = null;
+    private TransactionException cleanupAfterCompletion(JdbcTransactionStatus status) {
+        TransactionSynchronizationManager.unbindResource(dataSource);
 
-        if (status.mustRestoreAutoCommit) {
-            try {
-                status.connection.setAutoCommit(true);
-            } catch (RuntimeException | SQLException e) {
-                failure = toTransactionException(CLEANUP_FAILURE_MESSAGE, e);
-            }
+        return doCleanupConnection(status.connection, status.mustRestoreAutoCommit);
+    }
+
+    private TransactionException cleanupAfterBeginFailure(
+            Connection connection,
+            boolean mustRestoreAutoCommit
+    ) {
+        if (connection == null) {
+            return null;
         }
 
-        return mergeFailures(failure, close(status.connection));
+        return doCleanupConnection(connection, mustRestoreAutoCommit);
+    }
+
+    private TransactionException doCleanupConnection(
+            Connection connection,
+            boolean mustRestoreAutoCommit
+    ) {
+        TransactionException failure = null;
+        if (mustRestoreAutoCommit) {
+            failure = restoreAutoCommit(connection);
+        }
+
+        return mergeFailures(failure, close(connection));
+    }
+
+    private TransactionException restoreAutoCommit(Connection connection) {
+        try {
+            connection.setAutoCommit(true);
+            return null;
+        } catch (RuntimeException | SQLException e) {
+            return toTransactionException(CLEANUP_FAILURE_MESSAGE, e);
+        }
     }
 
     private TransactionException mergeFailures(
@@ -105,14 +132,6 @@ public class DataSourceTransactionManager implements TransactionManager {
             primaryFailure.addSuppressed(secondaryFailure);
         }
         return primaryFailure;
-    }
-
-    private TransactionException closeIfNecessary(Connection connection) {
-        if (connection == null) {
-            return null;
-        }
-
-        return close(connection);
     }
 
     private TransactionException close(Connection connection) {
