@@ -5,14 +5,30 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import froggy.winterframework.aop.framework.JdkProxyFactory;
+import froggy.winterframework.transaction.TransactionManager;
 import froggy.winterframework.transaction.annotation.Transactional;
 import java.lang.reflect.Proxy;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
+@RunWith(MockitoJUnitRunner.class)
 public class TransactionalBeanPostProcessorTest {
 
-    private final TransactionalBeanPostProcessor postProcessor =
-        new TransactionalBeanPostProcessor(new JdkProxyFactory(), new TransactionInterceptor());
+    @Mock
+    private TransactionManager transactionManager;
+
+    private TransactionalBeanPostProcessor postProcessor;
+
+    @Before
+    public void setUp() {
+        postProcessor = new TransactionalBeanPostProcessor(
+            new JdkProxyFactory(),
+            new TransactionInterceptor(transactionManager)
+        );
+    }
 
     @Test
     public void Transactional_method가_있는_bean은_JDK_proxy로_등록된다() {
