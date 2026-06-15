@@ -4,7 +4,6 @@ import froggy.winterframework.aop.framework.ProxyFactory;
 import froggy.winterframework.beans.factory.annotation.Autowired;
 import froggy.winterframework.beans.factory.config.BeanPostProcessor;
 import froggy.winterframework.stereotype.Component;
-import froggy.winterframework.transaction.annotation.Transactional;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
@@ -14,14 +13,17 @@ public class TransactionalBeanPostProcessor implements BeanPostProcessor {
 
     private final ProxyFactory proxyFactory;
     private final TransactionInterceptor transactionInterceptor;
+    private final TransactionalMethodMatcher methodMatcher;
 
     @Autowired
     public TransactionalBeanPostProcessor(
             ProxyFactory proxyFactory,
-            TransactionInterceptor transactionInterceptor
+            TransactionInterceptor transactionInterceptor,
+            TransactionalMethodMatcher methodMatcher
     ) {
         this.proxyFactory = proxyFactory;
         this.transactionInterceptor = transactionInterceptor;
+        this.methodMatcher = methodMatcher;
     }
 
     @Override
@@ -34,9 +36,9 @@ public class TransactionalBeanPostProcessor implements BeanPostProcessor {
     }
 
     private boolean hasTransactionalMethod(Class<?> beanClass) {
-        for (Method method : beanClass.getDeclaredMethods()) {
+        for (Method method : beanClass.getMethods()) {
             if (Modifier.isPublic(method.getModifiers())
-                && method.isAnnotationPresent(Transactional.class)) {
+                && methodMatcher.matches(method, beanClass)) {
                 return true;
             }
         }

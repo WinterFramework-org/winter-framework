@@ -6,28 +6,35 @@ import froggy.winterframework.beans.factory.annotation.Autowired;
 import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.transaction.TransactionManager;
 import froggy.winterframework.transaction.TransactionStatus;
-import froggy.winterframework.transaction.annotation.Transactional;
-import java.lang.reflect.Method;
 
 @Component
 public class TransactionInterceptor implements MethodInterceptor {
 
     private static final String NULL_TRANSACTION_MANAGER_MESSAGE = "TransactionManager must not be null";
+    private static final String NULL_METHOD_MATCHER_MESSAGE = "TransactionalMethodMatcher must not be null";
 
     private final TransactionManager transactionManager;
+    private final TransactionalMethodMatcher methodMatcher;
 
     @Autowired
-    public TransactionInterceptor(TransactionManager transactionManager) {
+    public TransactionInterceptor(
+            TransactionManager transactionManager,
+            TransactionalMethodMatcher methodMatcher
+    ) {
         if (transactionManager == null) {
             throw new IllegalArgumentException(NULL_TRANSACTION_MANAGER_MESSAGE);
         }
+        if (methodMatcher == null) {
+            throw new IllegalArgumentException(NULL_METHOD_MATCHER_MESSAGE);
+        }
 
         this.transactionManager = transactionManager;
+        this.methodMatcher = methodMatcher;
     }
 
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
-        if (!isTransactional(invocation)) {
+        if (!methodMatcher.matches(invocation.getMethod(), invocation.getTarget().getClass())) {
             return invocation.proceed();
         }
 
@@ -46,17 +53,5 @@ public class TransactionInterceptor implements MethodInterceptor {
 
         transactionManager.commit(status);
         return result;
-    }
-
-    private boolean isTransactional(MethodInvocation invocation) throws NoSuchMethodException {
-        Method targetMethod = getTargetMethod(invocation);
-        return targetMethod.isAnnotationPresent(Transactional.class);
-    }
-
-    private Method getTargetMethod(MethodInvocation invocation) throws NoSuchMethodException {
-        Method method = invocation.getMethod();
-        return invocation.getTarget()
-            .getClass()
-            .getMethod(method.getName(), method.getParameterTypes());
     }
 }

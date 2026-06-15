@@ -24,9 +24,11 @@ public class TransactionalBeanPostProcessorTest {
 
     @Before
     public void setUp() {
+        TransactionalMethodMatcher methodMatcher = new TransactionalMethodMatcher();
         postProcessor = new TransactionalBeanPostProcessor(
             new JdkProxyFactory(),
-            new TransactionInterceptor(transactionManager)
+            new TransactionInterceptor(transactionManager, methodMatcher),
+            methodMatcher
         );
     }
 
@@ -71,6 +73,19 @@ public class TransactionalBeanPostProcessorTest {
     }
 
     @Test
+    public void interface_method가_Transactional인_bean은_JDK_proxy로_등록된다() {
+        // Given
+        InterfaceTransactionalServiceImpl target = new InterfaceTransactionalServiceImpl();
+
+        // When
+        Object bean = postProcessor.postProcessAfterInitialization(target, "interfaceTransactionalService");
+
+        // Then
+        assertTrue(Proxy.isProxyClass(bean.getClass()));
+        assertTrue(bean instanceof InterfaceTransactionalService);
+    }
+
+    @Test
     public void interface가_없는_Transactional_bean은_예외를_던진다() {
         // Given
         NoInterfaceTransactionalService target = new NoInterfaceTransactionalService();
@@ -110,6 +125,20 @@ public class TransactionalBeanPostProcessorTest {
     }
 
     public static class PlainServiceImpl implements PlainService {
+
+        @Override
+        public String execute() {
+            return "ok";
+        }
+    }
+
+    public interface InterfaceTransactionalService {
+
+        @Transactional
+        String execute();
+    }
+
+    public static class InterfaceTransactionalServiceImpl implements InterfaceTransactionalService {
 
         @Override
         public String execute() {
