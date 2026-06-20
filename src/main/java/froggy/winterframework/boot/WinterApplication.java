@@ -213,8 +213,8 @@ public class WinterApplication {
     private Set<Class<?>> scanAutoConfigClasses() {
         Set<Class<?>> autoConfigClasses = new HashSet<>();
         try {
-            Enumeration<URL> configFiles = ClassLoader
-                .getSystemResources("META-INF/winter.autoconfig");
+            Enumeration<URL> configFiles = Thread.currentThread().getContextClassLoader()
+                .getResources("META-INF/winter.autoconfig");
             while (configFiles.hasMoreElements()) {
                 URL resource = configFiles.nextElement();
                 for (String className : readClassName(resource)) {

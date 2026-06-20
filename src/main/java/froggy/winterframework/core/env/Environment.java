@@ -119,7 +119,7 @@ public class Environment {
     public class PropertyLoader {
         private PropertySource load() throws IOException {
             Properties prop = new Properties();
-            try (InputStream input = ClassLoader.getSystemClassLoader()
+            try (InputStream input = Thread.currentThread().getContextClassLoader()
                 .getResourceAsStream("application.properties")) {
                 if (input == null) {
                     return new PropertySource("properties", new HashMap<>());
