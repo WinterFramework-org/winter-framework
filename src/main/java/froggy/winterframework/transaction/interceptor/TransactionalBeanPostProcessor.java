@@ -8,6 +8,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
 
+/**
+ * transaction 대상 bean을 {@link TransactionInterceptor}가 적용된 proxy로 대체하는
+ * {@link BeanPostProcessor}.
+ *
+ * transaction 대상 method 여부는 {@link TransactionalMethodMatcher}가 판단한다.
+ */
 @Component
 public class TransactionalBeanPostProcessor implements BeanPostProcessor {
 

@@ -8,6 +8,10 @@ import froggy.winterframework.jdbc.datasource.DriverManagerDataSource;
 import froggy.winterframework.transaction.TransactionManager;
 import javax.sql.DataSource;
 
+/**
+ * datasource 설정값 기반 {@link DataSource} bean과
+ * {@link TransactionManager} bean을 등록하는 auto-configuration.
+ */
 @Configuration
 public class DataSourceTransactionAutoConfiguration {
 

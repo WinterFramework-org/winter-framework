@@ -8,6 +8,12 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.logging.Logger;
 import javax.sql.DataSource;
 
+/**
+ * JDBC {@link DriverManager}를 사용해 {@code getConnection(...)} 호출마다
+ * {@link Connection}을 생성하는 {@link DataSource} 구현체.
+ *
+ * connection pooling은 제공하지 않는다.
+ */
 public class DriverManagerDataSource implements DataSource {
 
     private static final String URL_REQUIRED_MESSAGE = "DataSource URL must not be null";

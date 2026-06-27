@@ -4,9 +4,20 @@ import froggy.winterframework.stereotype.Component;
 import froggy.winterframework.transaction.annotation.Transactional;
 import java.lang.reflect.Method;
 
+/**
+ * {@link Transactional} annotation 기준으로 transaction 대상 method를 판별하는 matcher.
+ */
 @Component
 public class TransactionalMethodMatcher {
 
+    /**
+     * 전달된 method 자체 또는 target class와 상위 class/interface의 같은 signature method에
+     * {@link Transactional} annotation이 있는지 반환한다.
+     *
+     * @param method proxy invocation에서 전달된 method
+     * @param targetClass 실제 target object의 class
+     * @return {@link Transactional} annotation이 발견되면 true, 아니면 false
+     */
     public boolean matches(Method method, Class<?> targetClass) {
         if (method.isAnnotationPresent(Transactional.class)) {
             return true;
