@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import froggy.winterframework.core.MethodParameter;
 import froggy.winterframework.web.ModelAndView;
+import froggy.winterframework.web.bind.MissingRequestBodyException;
 import froggy.winterframework.web.bind.annotation.RequestBody;
 import froggy.winterframework.web.context.request.NativeWebRequest;
 import froggy.winterframework.web.method.support.HandlerMethodArgumentResolver;
@@ -37,7 +38,12 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
      * @param parameter @RequestBody가 붙은 메서드 파라미터
      * @param webRequest 현재 Request 컨텍스트
      * @param mavContainer 현재 요청의 Model/View 처리 상태를 관리하는 컨테이너
-     * @return 변환된 객체 (요청 본문을 파싱한 결과)
+     * @return 변환된 객체, 선택 본문이 없으면 {@code null}
+     * @throws MissingRequestBodyException 요청 본문 값이 없고 다음 중 하나에 해당하는 경우
+     * <ul>
+     *   <li>{@code required=true}로 본문이 필수인 경우</li>
+     *   <li>{@code required=false}지만 파라미터가 기본형이라 null을 받을 수 없는 경우</li>
+     * </ul>
      */
     @Override
     public Object resolveArgument(MethodParameter parameter, NativeWebRequest webRequest, ModelAndView mavContainer) {
@@ -55,7 +61,27 @@ public class RequestBodyMethodArgumentResolver implements HandlerMethodArgumentR
         }
 
         String requestData = sb.toString();
-        return parseJsonToType(requestData, parameter.getGenericParameterType());
+        String trimmedRequestData = requestData.trim();
+        Object arg = null;
+        if (!trimmedRequestData.isEmpty() && !"null".equals(trimmedRequestData)) {
+            arg = parseJsonToType(requestData, parameter.getGenericParameterType());
+        }
+
+        if (arg == null && checkRequired(parameter)) {
+            throw new MissingRequestBodyException();
+        }
+        return arg;
+    }
+
+    /**
+     * 본문 필수 설정과 기본형 파라미터의 null 수용 불가 여부를 확인한다.
+     *
+     * @param parameter 요청 본문을 받을 메서드 파라미터
+     * @return 본문이 필수이거나 파라미터가 기본형이면 {@code true}
+     */
+    private boolean checkRequired(MethodParameter parameter) {
+        RequestBody requestBody = parameter.getParameterAnnotation(RequestBody.class);
+        return requestBody.required() || parameter.getParameterType().isPrimitive();
     }
 
     protected Object parseJsonToType(String requestData, Type requiredType) {

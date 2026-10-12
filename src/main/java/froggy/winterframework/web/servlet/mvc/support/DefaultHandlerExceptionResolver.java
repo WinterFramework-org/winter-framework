@@ -6,6 +6,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import froggy.winterframework.validation.BindingResult;
 import froggy.winterframework.validation.MethodArgumentNotValidException;
 import froggy.winterframework.web.ModelAndView;
+import froggy.winterframework.web.bind.MissingRequestBodyException;
 import froggy.winterframework.web.servlet.ExceptionResolver;
 import froggy.winterframework.web.servlet.MethodNotAllowedException;
 import froggy.winterframework.web.servlet.NoHandlerFoundException;
@@ -61,6 +62,10 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
     }
 
     private ResolvedError resolveError(Exception exception) {
+        if (exception instanceof MissingRequestBodyException) {
+            return resolveMissingRequestBodyError((MissingRequestBodyException) exception);
+        }
+
         if (exception instanceof MethodArgumentNotValidException) {
             return resolveValidationError((MethodArgumentNotValidException) exception);
         }
@@ -74,6 +79,14 @@ public class DefaultHandlerExceptionResolver implements ExceptionResolver {
         }
 
         return null;
+    }
+
+    private ResolvedError resolveMissingRequestBodyError(MissingRequestBodyException exception) {
+        return ResolvedError.of(
+            HttpServletResponse.SC_BAD_REQUEST,
+            "BAD_REQUEST",
+            nonEmptyMessage(exception.getMessage(), "Request body must not be empty or null")
+        );
     }
 
     private ResolvedError resolveValidationError(MethodArgumentNotValidException exception) {
