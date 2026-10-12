@@ -287,7 +287,11 @@ public class WinterApplication {
                     clazz,
                     scopeMetadataResolver.resolveScopeMetadata(clazz)
                 );
-                beanDefinitions.put(beanName, beanDefinition);
+                BeanDefinition previous = beanDefinitions.putIfAbsent(beanName, beanDefinition);
+                if (previous != null) {
+                    throw new IllegalStateException("Duplicate BeanDefinition name: " + beanName
+                        + " (" + previous.getBeanClass().getName() + ", " + clazz.getName() + ")");
+                }
             }
         }
 
