@@ -112,7 +112,7 @@ server.port=8080
 
 ### 📁 폴더 구조
 ```
-com.winter.framework
+froggy.winterframework
 ├── boot/                                   # 부트스트랩 / 내장 서버 구동
 │   ├── WinterApplication.java              # 프레임워크 진입점(컨테이너 초기화 + 서버 시작)
 │   └── web/
