@@ -14,6 +14,10 @@
 
 설계나 구현 방향을 제안하거나 코드를 작성·변경할 때 [docs/agents/design-principles.md](docs/agents/design-principles.md)를 읽는다.
 
+## 브랜치 작업과 병합
+
+기능 작업을 시작하거나 브랜치를 생성·병합할 때 [docs/agents/branching-and-merging.md](docs/agents/branching-and-merging.md)를 읽는다.
+
 ## 검증 방법
 
 검증을 계획·준비·수행하거나 실행을 안내할 때 [docs/agents/verification.md](docs/agents/verification.md)를 읽는다.
