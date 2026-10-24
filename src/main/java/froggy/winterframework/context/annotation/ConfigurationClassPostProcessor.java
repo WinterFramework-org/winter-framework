@@ -73,7 +73,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
         ConfigurationCandidate candidate
     ) {
         for (Method method : candidate.beanClass.getMethods()) {
-            if (WinterUtils.hasAnnotation(method, Bean.class)) {
+            if (!method.isBridge() && WinterUtils.hasAnnotation(method, Bean.class)) {
                 ScopeType scopeType = scopeMetadataResolver.resolveScopeMetadata(method);
                 BeanDefinition bd = new BeanDefinition(
                     method.getReturnType(),
