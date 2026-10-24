@@ -25,7 +25,12 @@
 
 ## 검증 방법
 
-검증을 계획·준비·수행하거나 실행을 안내할 때 [docs/agents/verification.md](docs/agents/verification.md)를 읽는다.
+다음 작업 시 [docs/agents/verification.md](docs/agents/verification.md)를 읽는다.
+
+- 테스트 작성·수정
+- 검증 계획·준비
+- 검증 수행
+- 실행 방법 안내
 
 ## 검증 결과 보고
 
