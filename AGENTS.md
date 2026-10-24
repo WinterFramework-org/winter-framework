@@ -14,9 +14,14 @@
 
 설계나 구현 방향을 제안하거나 코드를 작성·변경할 때 [docs/agents/design-principles.md](docs/agents/design-principles.md)를 읽는다.
 
-## 브랜치 작업과 병합
+## 브랜치·커밋·병합
 
-기능 작업을 시작하거나 브랜치를 생성·병합할 때 [docs/agents/branching-and-merging.md](docs/agents/branching-and-merging.md)를 읽는다.
+다음 작업 전에 [docs/agents/git-workflow.md](docs/agents/git-workflow.md)를 읽는다.
+
+- 저장소 파일을 변경하는 작업 시작
+- 브랜치 생성
+- 커밋 작성
+- 병합
 
 ## 검증 방법
 

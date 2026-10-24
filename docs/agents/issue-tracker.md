@@ -14,4 +14,13 @@ GitHub Issues로 관리한다. gh CLI를 사용한다.
 스킬의 publish to the issue tracker는 GitHub 이슈 생성을 뜻한다.
 fetch the relevant ticket은 해당 GitHub 이슈 조회를 뜻한다.
 
+## 버그 이슈 작성
+
+본문은 다음 구성을 기준으로 작성하며, 상황과 맥락에 따라 구성을 조정할 수 있다.
+
+- 문제
+- 재현 코드
+- 실제 결과
+- 기대 결과
+
 PRs as a request surface: no.
