@@ -24,6 +24,7 @@ public class DefaultTypeConverter implements TypeConverter {
         CONVERTERS.put(boolean.class, value -> parseBoolean(value)); CONVERTERS.put(Boolean.class, value -> parseBoolean(value));
         CONVERTERS.put(short.class, value -> parseShort(value)); CONVERTERS.put(Short.class, value -> parseShort(value));
         CONVERTERS.put(float.class, value -> parseFloat(value)); CONVERTERS.put(Float.class, value -> parseFloat(value));
+        CONVERTERS.put(double.class, value -> parseDouble(value)); CONVERTERS.put(Double.class, value -> parseDouble(value));
         CONVERTERS.put(byte.class, value -> parseByte(value)); CONVERTERS.put(Byte.class, value -> parseByte(value));
         CONVERTERS.put(char.class, value -> parseChar(value)); CONVERTERS.put(Character.class, value -> parseChar(value));
     }
@@ -80,6 +81,10 @@ public class DefaultTypeConverter implements TypeConverter {
 
     private Float parseFloat(String value) {
         return Float.valueOf(value);
+    }
+
+    private Double parseDouble(String value) {
+        return Double.valueOf(value);
     }
 
     private Byte parseByte(String value) {
