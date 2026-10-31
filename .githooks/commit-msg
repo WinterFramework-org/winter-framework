@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+for script in "$0.d/"*; do
+    [ -f "$script" ] || continue
+    "$script" "$@"
+done
